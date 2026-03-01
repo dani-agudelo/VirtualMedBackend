@@ -6,6 +6,10 @@ using Serilog;
 using VirtualMed.Api.Middleware;
 using VirtualMed.Application.Commands.Patients;
 using VirtualMed.Application.Common.Behaviors;
+using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Interfaces;
+using VirtualMed.Infrastructure.Persistence;
+using VirtualMed.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +23,6 @@ builder.Host.UseSerilog();
 // Add services to the container.
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -63,10 +66,16 @@ builder.Services.AddValidatorsFromAssembly(typeof(CreatePatientCommand).Assembly
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
-// AutoMapper
 builder.Services.AddAutoMapper(typeof(VirtualMed.Application.Common.Mappings.PatientProfile).Assembly);
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+builder.Services.AddScoped<IPatientRepository, PatientRepository>();
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection")));
+
 
 var app = builder.Build();
 
