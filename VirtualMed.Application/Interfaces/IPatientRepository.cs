@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using VirtualMed.Domain.Entities;
-using VirtualMed.Domain.Entities.Patients;
+﻿using VirtualMed.Domain.Entities;
 
 namespace VirtualMed.Application.Interfaces
 {

@@ -8,8 +8,11 @@ using VirtualMed.Application.Commands.Patients;
 using VirtualMed.Application.Common.Behaviors;
 using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Interfaces;
+using VirtualMed.Application.Interfaces.Services;
 using VirtualMed.Infrastructure.Persistence;
 using VirtualMed.Infrastructure.Repositories;
+using VirtualMed.Infrastructure.Services;
+using VirtualMed.Infrastructure.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,17 +72,31 @@ builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBeh
 builder.Services.AddAutoMapper(typeof(VirtualMed.Application.Common.Mappings.PatientProfile).Assembly);
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
+// Configurar MinIO
+builder.Services.Configure<MinioSettings>(builder.Configuration.GetSection("Minio"));
+
+builder.Services.AddScoped<IApplicationDbContext>(provider => 
+    provider.GetRequiredService<ApplicationDbContext>());
 builder.Services.AddScoped<IPatientRepository, PatientRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IDoctorRepository, DoctorRepository>();
+builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+builder.Services.AddScoped<IMinioService, MinioService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

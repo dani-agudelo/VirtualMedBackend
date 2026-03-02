@@ -2,10 +2,10 @@
 
 namespace VirtualMed.Application.Commands.Patients
 {
-    public class CreatePatientCommandValidator
+    public class RegisterDoctorValidator
         : AbstractValidator<CreatePatientCommand>
     {
-        public CreatePatientCommandValidator()
+        public RegisterDoctorValidator()
         {
             RuleFor(x => x.Email)
                 .NotEmpty()

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Diagnostics;
+using VirtualMed.Application.Exceptions;
 
 namespace VirtualMed.Api.Middleware;
 
@@ -18,16 +19,25 @@ public class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
-        _logger.LogError(exception, "Unhandled exception");
+        var (statusCode, title) = exception switch
+        {
+            NotFoundException => (HttpStatusCode.NotFound, "Recurso no encontrado"),
+            DuplicateEntityException => (HttpStatusCode.Conflict, "Conflicto de duplicación"),
+            VirtualMed.Application.Exceptions.InvalidOperationException => (HttpStatusCode.BadRequest, "Operación inválida"),
+            FluentValidation.ValidationException => (HttpStatusCode.BadRequest, "Error de validación"),
+            _ => (HttpStatusCode.InternalServerError, "Error interno del servidor")
+        };
 
-        httpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        _logger.LogError(exception, "Exception occurred: {Message}", exception.Message);
+
+        httpContext.Response.StatusCode = (int)statusCode;
         httpContext.Response.ContentType = "application/json";
 
         var problem = new
         {
             traceId = httpContext.TraceIdentifier,
-            status = httpContext.Response.StatusCode,
-            title = "An unexpected error occurred.",
+            status = (int)statusCode,
+            title = title,
             detail = exception.Message
         };
 
@@ -37,4 +47,3 @@ public class GlobalExceptionHandler : IExceptionHandler
         return true;
     }
 }
-

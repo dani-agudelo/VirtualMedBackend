@@ -1,9 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using VirtualMed.Domain.Entities;
-using VirtualMed.Domain.Entities.Patients;
 
-namespace VirtualMed.Infrastructure.Persistence.Configurations;
+namespace VirtualMed.Infrastructure.Persistence.Configuration;
 
 public class PatientConfiguration : IEntityTypeConfiguration<Patient>
 {
