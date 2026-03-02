@@ -6,9 +6,12 @@ using Serilog;
 using VirtualMed.Api.Middleware;
 using VirtualMed.Application.Commands.Patients;
 using VirtualMed.Application.Common.Behaviors;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Application.Interfaces.Services;
+using VirtualMed.Api.Swagger;
 using VirtualMed.Infrastructure.Persistence;
 using VirtualMed.Infrastructure.Repositories;
 using VirtualMed.Infrastructure.Services;
@@ -59,6 +62,8 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+
+    c.DocumentFilter<HealthCheckDocumentFilter>();
 });
 
 builder.Services.AddMediatR(cfg =>
@@ -92,10 +97,23 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ApplicationDbContext>("database", tags: new[] { "db", "ready" });
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-app.UseExceptionHandler();
+app.UseExceptionHandler(exceptionHandlerApp =>
+{
+    exceptionHandlerApp.Run(async context =>
+    {
+        var handler = context.RequestServices.GetRequiredService<IExceptionHandler>();
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        if (exception != null)
+            await handler.TryHandleAsync(context, exception, context.RequestAborted);
+    });
+});
+
+app.UseMiddleware<SerilogEnrichmentMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -110,5 +128,15 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => true
+});
+
+app.MapHealthChecks("/health/db", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("db")
+});
 
 app.Run();

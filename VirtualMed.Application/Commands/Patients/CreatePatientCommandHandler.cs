@@ -1,20 +1,34 @@
-﻿using MediatR;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using MediatR;
+using VirtualMed.Application.Interfaces;
+using VirtualMed.Domain.Entities.Patients;
 
-namespace VirtualMed.Application.Commands.Patients
+namespace VirtualMed.Application.Commands.Patients;
+
+public class CreatePatientCommandHandler : IRequestHandler<CreatePatientCommand, Guid>
 {
-    public class CreatePatientCommandHandler
-        : IRequestHandler<CreatePatientCommand, Guid>
+    private readonly IPatientRepository _patientRepository;
+
+    public CreatePatientCommandHandler(IPatientRepository patientRepository)
     {
-        public Task<Guid> Handle(
-            CreatePatientCommand request,
-            CancellationToken cancellationToken)
+        _patientRepository = patientRepository;
+    }
+
+    public async Task<Guid> Handle(
+        CreatePatientCommand request,
+        CancellationToken cancellationToken)
+    {
+        var patient = new Patient
         {
-            // Aquí iría la lógica real (usar DbContext, repositorios, etc.)
-            var newId = Guid.NewGuid();
-            return Task.FromResult(newId);
-        }
+            Id = Guid.NewGuid(),
+            UserId = request.UserId,
+            Document = request.Document,
+            DateOfBirth = request.DateOfBirth,
+            Gender = request.Gender,
+            BloodType = request.BloodType,
+            Allergies = request.Allergies ?? string.Empty
+        };
+
+        await _patientRepository.AddAsync(patient);
+        return patient.Id;
     }
 }
