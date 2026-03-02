@@ -1,6 +1,6 @@
 using AutoMapper;
 using VirtualMed.Application.Patients;
-using VirtualMed.Domain.Entities.Patients;
+using VirtualMed.Domain.Entities;
 
 namespace VirtualMed.Application.Common.Mappings;
 

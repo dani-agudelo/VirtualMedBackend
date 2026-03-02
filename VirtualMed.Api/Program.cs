@@ -10,9 +10,12 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Interfaces;
+using VirtualMed.Application.Interfaces.Services;
 using VirtualMed.Api.Swagger;
 using VirtualMed.Infrastructure.Persistence;
 using VirtualMed.Infrastructure.Repositories;
+using VirtualMed.Infrastructure.Services;
+using VirtualMed.Infrastructure.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -76,7 +79,19 @@ builder.Services.AddAutoMapper(typeof(VirtualMed.Application.Common.Mappings.Pat
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
+// Configurar MinIO
+builder.Services.Configure<MinioSettings>(builder.Configuration.GetSection("Minio"));
+
+builder.Services.AddScoped<IApplicationDbContext>(provider => 
+    provider.GetRequiredService<ApplicationDbContext>());
 builder.Services.AddScoped<IPatientRepository, PatientRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IDoctorRepository, DoctorRepository>();
+builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+builder.Services.AddScoped<IMinioService, MinioService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(

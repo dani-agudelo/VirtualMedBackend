@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Interfaces;
-using VirtualMed.Domain.Entities.Patients;
+using VirtualMed.Domain.Entities;
 using VirtualMed.Infrastructure.Persistence;
 
 namespace VirtualMed.Infrastructure.Repositories;
