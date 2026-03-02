@@ -1,6 +1,6 @@
 using MediatR;
 using VirtualMed.Application.Interfaces;
-using VirtualMed.Domain.Entities.Patients;
+using VirtualMed.Domain.Entities;
 
 namespace VirtualMed.Application.Commands.Patients;
 
