@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using VirtualMed.Domain.Entities;
 using VirtualMed.Domain.Entities.Patients;
@@ -14,8 +14,9 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
         builder.HasKey(p => p.Id);
 
         builder.Property(p => p.UserId)
-            .HasMaxLength(200)
             .IsRequired();
+
+        builder.HasIndex(p => p.UserId);
 
         builder.Property(p => p.DateOfBirth)
             .IsRequired();
@@ -23,5 +24,16 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
         builder.Property(p => p.Document)
             .HasMaxLength(20)
             .IsRequired();
+
+        builder.Property(p => p.Gender)
+            .HasMaxLength(50)
+            .IsRequired();
+
+        builder.Property(p => p.BloodType)
+            .HasMaxLength(10)
+            .IsRequired();
+
+        builder.Property(p => p.Allergies)
+            .HasMaxLength(2000);
     }
 }

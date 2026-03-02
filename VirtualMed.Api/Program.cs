@@ -79,7 +79,12 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Manejo centralizado de excepciones (debe ir al inicio del pipeline)
+app.UseExceptionHandler();
+
+// Trazabilidad: enriquece todos los logs con TraceId, IP y UserId
+app.UseMiddleware<SerilogEnrichmentMiddleware>();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

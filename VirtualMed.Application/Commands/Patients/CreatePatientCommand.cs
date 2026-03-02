@@ -1,7 +1,11 @@
-﻿using MediatR;
-using System;
+using MediatR;
 
-namespace VirtualMed.Application.Commands.Patients
-{
-    public record CreatePatientCommand(string Email, string Document) : IRequest<Guid>;
-}
+namespace VirtualMed.Application.Commands.Patients;
+
+public record CreatePatientCommand(
+    Guid UserId,
+    string Document,
+    DateTime DateOfBirth,
+    string Gender,
+    string BloodType,
+    string? Allergies) : IRequest<Guid>;
