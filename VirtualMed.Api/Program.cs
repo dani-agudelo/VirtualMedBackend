@@ -6,8 +6,11 @@ using Serilog;
 using VirtualMed.Api.Middleware;
 using VirtualMed.Application.Commands.Patients;
 using VirtualMed.Application.Common.Behaviors;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Interfaces;
+using VirtualMed.Api.Swagger;
 using VirtualMed.Infrastructure.Persistence;
 using VirtualMed.Infrastructure.Repositories;
 
@@ -56,6 +59,8 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+
+    c.DocumentFilter<HealthCheckDocumentFilter>();
 });
 
 builder.Services.AddMediatR(cfg =>
@@ -69,6 +74,7 @@ builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBeh
 builder.Services.AddAutoMapper(typeof(VirtualMed.Application.Common.Mappings.PatientProfile).Assembly);
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 builder.Services.AddScoped<IPatientRepository, PatientRepository>();
 
@@ -76,13 +82,22 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ApplicationDbContext>("database", tags: new[] { "db", "ready" });
 
 var app = builder.Build();
 
-// Manejo centralizado de excepciones (debe ir al inicio del pipeline)
-app.UseExceptionHandler();
+app.UseExceptionHandler(exceptionHandlerApp =>
+{
+    exceptionHandlerApp.Run(async context =>
+    {
+        var handler = context.RequestServices.GetRequiredService<IExceptionHandler>();
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        if (exception != null)
+            await handler.TryHandleAsync(context, exception, context.RequestAborted);
+    });
+});
 
-// Trazabilidad: enriquece todos los logs con TraceId, IP y UserId
 app.UseMiddleware<SerilogEnrichmentMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -98,5 +113,15 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => true
+});
+
+app.MapHealthChecks("/health/db", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("db")
+});
 
 app.Run();
