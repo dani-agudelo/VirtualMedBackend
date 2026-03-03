@@ -79,6 +79,18 @@ builder.Services.AddAutoMapper(typeof(VirtualMed.Application.Common.Mappings.Pat
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:3000")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
+
 // Configurar MinIO
 builder.Services.Configure<MinioSettings>(builder.Configuration.GetSection("Minio"));
 
@@ -112,6 +124,7 @@ app.UseExceptionHandler(exceptionHandlerApp =>
             await handler.TryHandleAsync(context, exception, context.RequestAborted);
     });
 });
+app.UseCors("AllowFrontend");
 
 app.UseMiddleware<SerilogEnrichmentMiddleware>();
 
