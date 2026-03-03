@@ -16,6 +16,7 @@ using VirtualMed.Infrastructure.Persistence;
 using VirtualMed.Infrastructure.Repositories;
 using VirtualMed.Infrastructure.Services;
 using VirtualMed.Infrastructure.Configuration;
+using AspNetCoreRateLimit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -100,6 +101,17 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>("database", tags: new[] { "db", "ready" });
 
+// Configurar rate limiting
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(
+    builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.Configure<IpRateLimitPolicies>(
+    builder.Configuration.GetSection("IpRateLimitPolicies"));
+builder.Services.Configure<ClientRateLimitOptions>(
+    builder.Configuration.GetSection("ClientRateLimiting"));
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddInMemoryRateLimiting();
+
 var app = builder.Build();
 
 app.UseExceptionHandler(exceptionHandlerApp =>
@@ -114,26 +126,22 @@ app.UseExceptionHandler(exceptionHandlerApp =>
 });
 
 app.UseMiddleware<SerilogEnrichmentMiddleware>();
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
+app.UseIpRateLimiting();
+app.UseClientRateLimiting();
 app.UseSerilogRequestLogging();
-
 app.UseHttpsRedirection();
-
+app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
     Predicate = _ => true
 });
-
 app.MapHealthChecks("/health/db", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("db")
