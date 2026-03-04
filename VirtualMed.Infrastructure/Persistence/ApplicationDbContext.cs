@@ -16,6 +16,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<TwoFactorAuth> TwoFactorAuths => Set<TwoFactorAuth>();
 
     IQueryable<T> IApplicationDbContext.Set<T>() => Set<T>();
 

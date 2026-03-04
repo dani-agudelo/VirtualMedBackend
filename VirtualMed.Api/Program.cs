@@ -94,6 +94,7 @@ builder.Services.AddCors(options =>
 
 // Configurar MinIO
 builder.Services.Configure<MinioSettings>(builder.Configuration.GetSection("Minio"));
+builder.Services.Configure<EncryptionSettings>(builder.Configuration.GetSection("Encryption"));
 
 builder.Services.AddScoped<IApplicationDbContext>(provider => 
     provider.GetRequiredService<ApplicationDbContext>());
@@ -105,6 +106,8 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IMinioService, MinioService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IEncryptionService, EncryptionService>();
+builder.Services.AddScoped<ITotpService, TotpService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(
