@@ -58,4 +58,3 @@ public class VerifyTwoFactorCodeCommandHandler
         await _context.SaveChangesAsync(cancellationToken);
     }
 }
-

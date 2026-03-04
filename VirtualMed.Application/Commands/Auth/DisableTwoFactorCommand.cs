@@ -43,13 +43,15 @@ public class DisableTwoFactorCommandHandler
         var recoveryCodesJson = _encryptionService.Decrypt(twoFactor.RecoveryCodesEncrypted);
         var recoveryCodes = JsonSerializer.Deserialize<List<string>>(recoveryCodesJson) ?? new List<string>();
 
-        if (!recoveryCodes.Contains(request.RecoveryCode))
+        var codeToCheck = (request.RecoveryCode ?? string.Empty).Trim().ToUpperInvariant();
+
+        if (!recoveryCodes.Contains(codeToCheck))
             throw new BusinessRuleException("El código de recuperación proporcionado no es válido.");
 
-        recoveryCodes.Remove(request.RecoveryCode);
-        var updatedJson = JsonSerializer.Serialize(recoveryCodes);
-        twoFactor.RecoveryCodesEncrypted = _encryptionService.Encrypt(updatedJson);
+        recoveryCodes.Remove(codeToCheck);
 
+        twoFactor.SecretKeyEncrypted = string.Empty;
+        twoFactor.RecoveryCodesEncrypted = string.Empty;
         twoFactor.IsEnabled = false;
         twoFactor.UpdatedAt = DateTime.UtcNow;
         _context.Update(twoFactor);
