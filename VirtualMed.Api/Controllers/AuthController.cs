@@ -19,6 +19,53 @@ namespace VirtualMed.Api.Controllers
             _mediator = mediator;
         }
 
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        {
+            var result = await _mediator.Send(new LoginCommand(request.Email, request.Password));
+            if (result.RequiresTwoFactor)
+                return Ok(new { requiresTwoFactor = true, tempTwoFactorToken = result.TempTwoFactorToken });
+            return Ok(new
+            {
+                accessToken = result.AccessToken,
+                refreshToken = result.RefreshToken,
+                expiresInSeconds = result.ExpiresInSeconds
+            });
+        }
+
+        [HttpPost("login/2fa")]
+        public async Task<IActionResult> CompleteTwoFactorLogin([FromBody] CompleteTwoFactorLoginRequest request)
+        {
+            var result = await _mediator.Send(new CompleteTwoFactorLoginCommand(request.TempTwoFactorToken, request.Code));
+            return Ok(new
+            {
+                accessToken = result.AccessToken,
+                refreshToken = result.RefreshToken,
+                expiresInSeconds = result.ExpiresInSeconds
+            });
+        }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
+        {
+            var result = await _mediator.Send(new RefreshTokenCommand(request.RefreshToken));
+            return Ok(new
+            {
+                accessToken = result.AccessToken,
+                refreshToken = result.RefreshToken,
+                expiresInSeconds = result.ExpiresInSeconds
+            });
+        }
+
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] LogoutRequest? request = null)
+        {
+            var userId = GetUserId();
+            await _mediator.Send(new LogoutCommand(userId, request?.RefreshToken));
+            return NoContent();
+        }
+
         [HttpPost("register/doctor")]
         public async Task<IActionResult> RegisterDoctor(
             [FromForm] RegisterDoctorCommand command)

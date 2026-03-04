@@ -1,4 +1,4 @@
-﻿namespace VirtualMed.Domain.Entities
+namespace VirtualMed.Domain.Entities
 {
     public class User
     {
@@ -11,5 +11,6 @@
         public bool TwoFactorEnabled { get; set; }
         public string Status { get; set; } = "Pending";
         public DateTime CreatedAt { get; set; }
+        public DateTime? LastLoginAt { get; set; }
     }
 }
