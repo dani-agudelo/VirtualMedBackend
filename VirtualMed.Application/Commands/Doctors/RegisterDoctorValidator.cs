@@ -6,6 +6,9 @@ namespace VirtualMed.Application.Commands.Doctors
     {
         public RegisterDoctorValidator()
         {
+            RuleFor(x => x.FullName)
+                .NotEmpty()
+                .MaximumLength(100);
             RuleFor(x => x.Email)
                 .NotEmpty()
                 .EmailAddress();

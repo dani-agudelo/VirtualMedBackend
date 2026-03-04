@@ -1,4 +1,5 @@
-﻿using MediatR;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
 using VirtualMed.Domain.Entities;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Application.Interfaces.Services;
@@ -29,17 +30,17 @@ namespace VirtualMed.Application.Commands.Doctors
         public async Task<Guid> Handle(RegisterDoctorCommand request, CancellationToken cancellationToken)
         {
             // validar licencia única
-            var exists = _context.Set<Doctor>()
-                .Any(d => d.ProfessionalLicense == request.ProfessionalLicense);
+            var exists = await _context.Set<Doctor>()
+                .AnyAsync(d => d.ProfessionalLicense == request.ProfessionalLicense, cancellationToken);
 
             if (exists)
                 throw new DuplicateEntityException("Doctor", "Tarjeta Profesional", request.ProfessionalLicense);
 
             // crear usuario
-            var roleId = _context.Set<Role>()
+            var roleId = await _context.Set<Role>()
                 .Where(r => r.Name == "Doctor")
                 .Select(r => r.Id)
-                .FirstOrDefault();
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (roleId == Guid.Empty)
                 throw new NotFoundException("Rol 'Doctor' no encontrado en el sistema.");
@@ -47,6 +48,7 @@ namespace VirtualMed.Application.Commands.Doctors
             var user = new User
             {
                 Id = Guid.NewGuid(),
+                FullName = request.FullName,
                 Email = request.Email,
                 PasswordHash = _passwordHasher.Hash(request.Password),
                 Status = "PendingApproval",

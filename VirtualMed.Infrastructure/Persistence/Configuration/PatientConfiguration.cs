@@ -19,6 +19,12 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
 
         builder.Property(p => p.IdentificationType)
             .HasConversion<string>();
+        builder.HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId);
+
+        builder.Property(p => p.DateOfBirth)
+            .IsRequired();
 
         builder.Property(p => p.Document)
             .HasMaxLength(20)

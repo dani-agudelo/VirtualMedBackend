@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using VirtualMed.Domain.Entities;
 
@@ -12,6 +12,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasKey(u => u.Id);
 
+        builder.Property(u => u.FullName)
+            .HasMaxLength(100)
+            .IsRequired();
+
         builder.Property(u => u.Email)
             .HasMaxLength(150)
             .IsRequired();
@@ -23,7 +27,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(20)
             .IsRequired();
 
-        // relación con Role
+        builder.Property(u => u.LastLoginAt);
+
         builder.HasOne(u => u.Role)
             .WithMany()
             .HasForeignKey(u => u.RoleId);
