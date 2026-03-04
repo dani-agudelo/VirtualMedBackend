@@ -48,6 +48,7 @@ namespace VirtualMed.Application.Commands.Doctors
             var user = new User
             {
                 Id = Guid.NewGuid(),
+                FullName = request.FullName,
                 Email = request.Email,
                 PasswordHash = _passwordHasher.Hash(request.Password),
                 Status = "PendingApproval",
