@@ -56,7 +56,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         return exception switch
         {
             ValidationException => (400, "VALIDATION_ERROR", "Datos de entrada inválidos"),
-            UnauthorizedAccessException => (401, "UNAUTHORIZED", "Acceso no autorizado"),
+            UnauthorizedAccessException => (401, "UNAUTHORIZED", exception.Message),
             BusinessRuleException => (409, "BUSINESS_ERROR", exception.Message),
             ExternalServiceException => (503, "EXTERNAL_SERVICE_ERROR", "Servicio externo no disponible temporalmente"),
             _ => (500, "INTERNAL_ERROR", "Ha ocurrido un error interno. Use el traceId para soporte.")

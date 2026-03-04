@@ -15,6 +15,11 @@ using VirtualMed.Api.Swagger;
 using VirtualMed.Infrastructure.Persistence;
 using VirtualMed.Infrastructure.Repositories;
 using VirtualMed.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using VirtualMed.Application.Configuration;
 using VirtualMed.Infrastructure.Configuration;
 using AspNetCoreRateLimit;
 
@@ -95,6 +100,32 @@ builder.Services.AddCors(options =>
 // Configurar MinIO
 builder.Services.Configure<MinioSettings>(builder.Configuration.GetSection("Minio"));
 builder.Services.Configure<EncryptionSettings>(builder.Configuration.GetSection("Encryption"));
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddScoped<JwtSettings>(sp => sp.GetRequiredService<IOptions<JwtSettings>>().Value);
+
+// JWT Authentication
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("Jwt:Key is required.");
+var jwtIssuer = jwtSection["Issuer"];
+var jwtAudience = jwtSection["Audience"];
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ValidateIssuer = true,
+            ValidIssuer = jwtIssuer,
+            ValidateAudience = true,
+            ValidAudience = jwtAudience,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddScoped<VirtualMed.Application.Interfaces.Services.IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
 builder.Services.AddScoped<IApplicationDbContext>(provider => 
     provider.GetRequiredService<ApplicationDbContext>());
