@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using VirtualMed.Domain.Entities;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Application.Interfaces.Services;
@@ -22,8 +23,8 @@ public class ApproveDoctorCommandHandler : IRequestHandler<ApproveDoctorCommand,
     public async Task<Unit> Handle(ApproveDoctorCommand request, CancellationToken cancellationToken)
     {
         // Buscar el doctor
-        var doctor = _context.Set<Doctor>()
-            .FirstOrDefault(d => d.Id == request.DoctorId);
+        var doctor = await _context.Set<Doctor>()
+            .FirstOrDefaultAsync(d => d.Id == request.DoctorId, cancellationToken);
 
         if (doctor == null)
             throw new NotFoundException("Doctor", request.DoctorId);
@@ -34,8 +35,8 @@ public class ApproveDoctorCommandHandler : IRequestHandler<ApproveDoctorCommand,
                 $"El doctor con ID {request.DoctorId} ya está verificado.");
 
         // Buscar el usuario relacionado
-        var user = _context.Set<User>()
-            .FirstOrDefault(u => u.Id == doctor.UserId);
+        var user = await _context.Set<User>()
+            .FirstOrDefaultAsync(u => u.Id == doctor.UserId, cancellationToken);
 
         if (user == null)
             throw new NotFoundException("Usuario asociado al doctor", doctor.UserId);
