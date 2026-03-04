@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using VirtualMed.Domain.Entities;
 
@@ -15,5 +15,12 @@ public class RoleConfiguration : IEntityTypeConfiguration<Role>
         builder.Property(r => r.Name)
             .HasMaxLength(50)
             .IsRequired();
+
+        builder.HasMany(r => r.Permissions)
+            .WithMany(p => p.Roles)
+            .UsingEntity<Dictionary<string, object>>(
+                "role_permissions",
+                j => j.HasOne<Permission>().WithMany().HasForeignKey("PermissionId"),
+                j => j.HasOne<Role>().WithMany().HasForeignKey("RoleId"));
     }
 }

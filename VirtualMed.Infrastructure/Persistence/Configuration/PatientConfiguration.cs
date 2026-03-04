@@ -17,6 +17,10 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
 
         builder.HasIndex(p => p.UserId);
 
+        builder.HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId);
+
         builder.Property(p => p.DateOfBirth)
             .IsRequired();
 
