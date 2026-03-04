@@ -9,7 +9,7 @@ public class Patient
     public User User { get; set; } = null!;
     public IdentificationType? IdentificationType { get; set; }
     public string Document { get; set; } = null!;
-    public DateTime DateOfBirth { get; set; }
+    public DateOnly DateOfBirth { get; set; }
     public string BloodType { get; set; } = string.Empty;
     public string Gender { get; set; } = null!;
     public string Allergies { get; set; } = string.Empty;

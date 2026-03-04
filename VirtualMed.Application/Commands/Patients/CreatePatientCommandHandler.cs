@@ -52,6 +52,8 @@ public class CreatePatientCommandHandler : IRequestHandler<CreatePatientCommand,
 
         await _userRepository.AddAsync(user);
 
+        var dateParsed = DateOnly.FromDateTime(request.DateOfBirth);
+
         // Create Patient
         var patient = new Patient
         {
@@ -59,7 +61,7 @@ public class CreatePatientCommandHandler : IRequestHandler<CreatePatientCommand,
             UserId = user.Id,
             IdentificationType = request.IdentificationType,
             Document = request.Document,
-            DateOfBirth = request.DateOfBirth,
+            DateOfBirth = dateParsed,
             Gender = request.Gender,
             PhoneNumber = request.PhoneNumber,
             AcceptPrivacy = request.AcceptPrivacy,
