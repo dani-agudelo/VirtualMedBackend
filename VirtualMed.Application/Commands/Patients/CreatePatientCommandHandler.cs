@@ -44,6 +44,7 @@ public class CreatePatientCommandHandler : IRequestHandler<CreatePatientCommand,
         {
             Id = Guid.NewGuid(),
             RoleId = patientRole.Id,
+            FullName = request.FullName,
             Email = request.Email,
             PasswordHash = passwordHash,
             Status = "Pending",
@@ -52,8 +53,6 @@ public class CreatePatientCommandHandler : IRequestHandler<CreatePatientCommand,
 
         await _userRepository.AddAsync(user);
 
-        var dateParsed = DateOnly.FromDateTime(request.DateOfBirth);
-
         // Create Patient
         var patient = new Patient
         {
@@ -61,7 +60,7 @@ public class CreatePatientCommandHandler : IRequestHandler<CreatePatientCommand,
             UserId = user.Id,
             IdentificationType = request.IdentificationType,
             Document = request.Document,
-            DateOfBirth = dateParsed,
+            DateOfBirth = request.DateOfBirth,
             Gender = request.Gender,
             PhoneNumber = request.PhoneNumber,
             AcceptPrivacy = request.AcceptPrivacy,

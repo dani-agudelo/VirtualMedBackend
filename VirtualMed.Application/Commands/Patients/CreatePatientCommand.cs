@@ -4,14 +4,13 @@ using VirtualMed.Domain.Enums;
 namespace VirtualMed.Application.Commands.Patients;
 
 public record CreatePatientCommand(
-    string FirstName,
-    string LastName,
+    string FullName,
     string Email,
     string Password,
     string ConfirmPassword,
     IdentificationType? IdentificationType,
     string Document,
-    DateTime DateOfBirth,
+    DateOnly DateOfBirth,
     string Gender,
     string? PhoneNumber,
     bool AcceptPrivacy,
