@@ -27,6 +27,5 @@ public class PatientRepository : IPatientRepository
     public async Task AddAsync(Patient patient)
     {
         await _context.Patients.AddAsync(patient);
-        await _context.SaveChangesAsync();
     }
 }
