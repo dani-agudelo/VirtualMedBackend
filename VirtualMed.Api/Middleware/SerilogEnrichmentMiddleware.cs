@@ -17,7 +17,6 @@ public class SerilogEnrichmentMiddleware
         var traceId = context.TraceIdentifier;
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var userId = context.User?.FindFirst("sub")?.Value
-            ?? context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? "";
 
         using (LogContext.PushProperty("TraceId", traceId))

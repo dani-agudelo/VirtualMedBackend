@@ -1,7 +1,8 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using VirtualMed.Application.Interfaces;
+using VirtualMed.Application.Auth;
 using VirtualMed.Application.Configuration;
+using VirtualMed.Application.Interfaces;
 using VirtualMed.Application.Interfaces.Services;
 using VirtualMed.Domain.Entities;
 
@@ -33,6 +34,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
     {
         var user = await _context.Set<User>()
             .Include(u => u.Role)
+            .ThenInclude(r => r!.Permissions)
             .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
 
         if (user == null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
@@ -59,7 +61,16 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
             };
         }
 
-        var accessToken = _jwtTokenService.GenerateAccessToken(user.Id, user.Email, user.Role.Name);
+        var userInfo = new UserTokenInfo(
+            user.Id,
+            user.Email,
+            user.FullName ?? "",
+            user.Role.Name,
+            user.Status ?? "Active",
+            user.EmailVerified,
+            user.TwoFactorEnabled);
+        var permissions = user.Role.Permissions.Select(p => $"{p.Resource}:{p.Action}").ToList();
+        var accessToken = _jwtTokenService.GenerateAccessToken(userInfo, permissions);
         var refreshToken = _jwtTokenService.GenerateRefreshToken();
         var refreshTokenHash = _jwtTokenService.HashToken(refreshToken);
 

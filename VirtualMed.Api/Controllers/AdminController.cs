@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using VirtualMed.Api.Authorization;
 using VirtualMed.Application.Commands.Doctors;
 
 namespace VirtualMed.Api.Controllers;
@@ -15,6 +16,7 @@ public class AdminController : ControllerBase
         _mediator = mediator;
     }
 
+    [RequirePermission("Doctor", "Approve")]
     [HttpPost("doctors/{id}/approve")]
     public async Task<IActionResult> ApproveDoctor(Guid id)
     {

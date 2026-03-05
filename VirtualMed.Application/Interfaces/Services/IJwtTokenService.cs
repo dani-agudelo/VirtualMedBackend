@@ -1,10 +1,11 @@
 using System.Security.Claims;
+using VirtualMed.Application.Auth;
 
 namespace VirtualMed.Application.Interfaces.Services;
 
 public interface IJwtTokenService
 {
-    string GenerateAccessToken(Guid userId, string email, string roleName);
+    string GenerateAccessToken(UserTokenInfo user, IReadOnlyList<string> permissions);
     string GenerateRefreshToken();
     string GenerateTempTwoFactorToken(Guid userId);
     ClaimsPrincipal? ValidateAccessToken(string token);
