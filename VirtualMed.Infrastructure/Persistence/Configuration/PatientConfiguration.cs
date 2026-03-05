@@ -17,6 +17,8 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
 
         builder.HasIndex(p => p.UserId);
 
+        builder.Property(p => p.IdentificationType)
+            .HasConversion<string>();
         builder.HasOne(p => p.User)
             .WithMany()
             .HasForeignKey(p => p.UserId);
@@ -28,15 +30,29 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.HasIndex(p => p.Document)
+            .IsUnique();
+
+        builder.Property(p => p.DateOfBirth)
+            .IsRequired();
+
         builder.Property(p => p.Gender)
             .HasMaxLength(50)
             .IsRequired();
 
         builder.Property(p => p.BloodType)
-            .HasMaxLength(10)
-            .IsRequired();
+            .HasMaxLength(10);
 
         builder.Property(p => p.Allergies)
             .HasMaxLength(2000);
+
+        builder.Property(p => p.PhoneNumber)
+            .HasMaxLength(20);
+
+        builder.Property(p => p.AcceptPrivacy)
+            .IsRequired();
+
+        builder.Property(p => p.AuthorizeData)
+            .IsRequired();
     }
 }
