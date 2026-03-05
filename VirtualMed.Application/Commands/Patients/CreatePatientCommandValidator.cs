@@ -45,8 +45,7 @@ public class CreatePatientCommandValidator : AbstractValidator<CreatePatientComm
             .LessThanOrEqualTo(DateOnly.FromDateTime(DateTime.UtcNow)).WithMessage("Date of birth cannot be in the future.");
 
         RuleFor(x => x.Gender)
-            .NotEmpty().WithMessage("Gender is required.")
-            .Must(x => x == "male" || x == "female" || x == "other").WithMessage("Gender must be 'male', 'female', or 'other'.");
+            .IsInEnum().WithMessage("Gender must be 'Male', 'Female', or 'Other'.");
 
         RuleFor(x => x.PhoneNumber)
             .MaximumLength(20).WithMessage("Phone number must not exceed 20 characters.")
