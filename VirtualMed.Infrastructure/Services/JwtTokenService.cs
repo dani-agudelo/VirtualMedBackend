@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using VirtualMed.Application.Auth;
 using VirtualMed.Application.Configuration;
 using VirtualMed.Application.Interfaces.Services;
 
@@ -11,6 +12,15 @@ namespace VirtualMed.Infrastructure.Services;
 
 public class JwtTokenService : IJwtTokenService
 {
+    public const string ClaimSub = "sub";
+    public const string ClaimEmail = "email";
+    public const string ClaimRole = "role";
+    public const string ClaimFullName = "fullname";
+    public const string ClaimStatus = "status";
+    public const string ClaimEmailVerified = "email_verified";
+    public const string ClaimTwoFactorEnabled = "two_factor_enabled";
+    public const string ClaimPermission = "permission";
+
     private readonly JwtSettings _settings;
     private readonly byte[] _keyBytes;
 
@@ -20,15 +30,20 @@ public class JwtTokenService : IJwtTokenService
         _keyBytes = Encoding.UTF8.GetBytes(_settings.Key);
     }
 
-    public string GenerateAccessToken(Guid userId, string email, string roleName)
+    public string GenerateAccessToken(UserTokenInfo user, IReadOnlyList<string> permissions)
     {
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-            new Claim("sub", userId.ToString()),
-            new Claim(ClaimTypes.Email, email),
-            new Claim(ClaimTypes.Role, roleName)
+            new(ClaimSub, user.Id.ToString()),
+            new(ClaimEmail, user.Email),
+            new(ClaimRole, user.RoleName),
+            new(ClaimFullName, user.FullName ?? string.Empty),
+            new(ClaimStatus, user.Status ?? string.Empty),
+            new(ClaimEmailVerified, user.EmailVerified ? "true" : "false"),
+            new(ClaimTwoFactorEnabled, user.TwoFactorEnabled ? "true" : "false")
         };
+        foreach (var p in permissions)
+            claims.Add(new Claim(ClaimPermission, p));
         return BuildToken(claims, TimeSpan.FromMinutes(_settings.AccessTokenMinutes));
     }
 
@@ -41,8 +56,7 @@ public class JwtTokenService : IJwtTokenService
     {
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-            new Claim("sub", userId.ToString()),
+            new Claim(ClaimSub, userId.ToString()),
             new Claim("2fa_temp", "1")
         };
         return BuildToken(claims, TimeSpan.FromMinutes(_settings.TempTwoFactorTokenMinutes));
@@ -58,7 +72,7 @@ public class JwtTokenService : IJwtTokenService
         try
         {
             var principal = new JwtSecurityTokenHandler().ValidateToken(token, GetValidationParameters(validateLifetime: true), out _);
-            var sub = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? principal.FindFirst("sub")?.Value;
+            var sub = principal.FindFirst(ClaimSub)?.Value ?? principal.FindFirst("sub")?.Value;
             if (sub != null && Guid.TryParse(sub, out var userId))
                 return (true, userId);
             return (false, null);
@@ -73,7 +87,7 @@ public class JwtTokenService : IJwtTokenService
     {
         var principal = ValidateToken(token, validateLifetime: true, expect2FaTemp: true);
         if (principal == null) return (false, null);
-        var sub = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? principal.FindFirst("sub")?.Value;
+        var sub = principal.FindFirst(ClaimSub)?.Value ?? principal.FindFirst("sub")?.Value;
         if (sub != null && Guid.TryParse(sub, out var userId))
             return (true, userId);
         return (false, null);
@@ -86,7 +100,7 @@ public class JwtTokenService : IJwtTokenService
         return Convert.ToHexString(hash);
     }
 
-    private string BuildToken(Claim[] claims, TimeSpan validFor)
+    private string BuildToken(IEnumerable<Claim> claims, TimeSpan validFor)
     {
         var creds = new SigningCredentials(
             new SymmetricSecurityKey(_keyBytes),

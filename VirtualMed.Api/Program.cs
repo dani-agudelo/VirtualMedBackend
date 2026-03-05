@@ -16,11 +16,13 @@ using VirtualMed.Infrastructure.Persistence;
 using VirtualMed.Infrastructure.Repositories;
 using VirtualMed.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using VirtualMed.Application.Configuration;
 using VirtualMed.Infrastructure.Configuration;
+using VirtualMed.Api.Authorization;
 using AspNetCoreRateLimit;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -125,12 +127,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidAudience = jwtAudience,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.Zero,
+            NameClaimType = "sub",
+            RoleClaimType = "role"
         };
     });
 
 builder.Services.AddScoped<VirtualMed.Application.Interfaces.Services.IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+
+builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
 builder.Services.AddScoped<IApplicationDbContext>(provider => 
     provider.GetRequiredService<ApplicationDbContext>());
@@ -149,6 +157,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddScoped<RolePermissionSeeder>();
+
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>("database", tags: new[] { "db", "ready" });
 
@@ -164,6 +174,12 @@ builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>()
 builder.Services.AddInMemoryRateLimiting();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<RolePermissionSeeder>();
+    await seeder.SeedAsync();
+}
 
 app.UseExceptionHandler(exceptionHandlerApp =>
 {

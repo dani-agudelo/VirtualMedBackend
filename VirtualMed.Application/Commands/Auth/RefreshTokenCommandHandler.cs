@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Auth;
 using VirtualMed.Application.Configuration;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Application.Interfaces.Services;
@@ -37,11 +38,21 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
 
         var user = await _context.Set<User>()
             .Include(u => u.Role)
+            .ThenInclude(r => r!.Permissions)
             .FirstOrDefaultAsync(u => u.Id == stored.UserId, cancellationToken);
         if (user == null || user.Status != "Active")
             throw new UnauthorizedAccessException("Usuario no autorizado.");
 
-        var accessToken = _jwtTokenService.GenerateAccessToken(user.Id, user.Email, user.Role.Name);
+        var userInfo = new UserTokenInfo(
+            user.Id,
+            user.Email,
+            user.FullName ?? "",
+            user.Role.Name,
+            user.Status ?? "Active",
+            user.EmailVerified,
+            user.TwoFactorEnabled);
+        var permissions = user.Role.Permissions.Select(p => $"{p.Resource}:{p.Action}").ToList();
+        var accessToken = _jwtTokenService.GenerateAccessToken(userInfo, permissions);
         var newRefreshToken = _jwtTokenService.GenerateRefreshToken();
         var newRefreshHash = _jwtTokenService.HashToken(newRefreshToken);
 
