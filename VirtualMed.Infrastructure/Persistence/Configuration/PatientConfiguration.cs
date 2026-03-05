@@ -37,6 +37,7 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
             .IsRequired();
 
         builder.Property(p => p.Gender)
+            .HasConversion<string>()
             .HasMaxLength(50)
             .IsRequired();
 

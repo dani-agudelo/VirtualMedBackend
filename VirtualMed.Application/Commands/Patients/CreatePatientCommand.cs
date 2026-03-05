@@ -11,7 +11,7 @@ public record CreatePatientCommand(
     IdentificationType? IdentificationType,
     string Document,
     DateOnly DateOfBirth,
-    string Gender,
+    Gender Gender,
     string? PhoneNumber,
     bool AcceptPrivacy,
     bool AuthorizeData) : IRequest<Guid>;

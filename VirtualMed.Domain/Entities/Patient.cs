@@ -11,7 +11,7 @@ public class Patient
     public string Document { get; set; } = null!;
     public DateOnly DateOfBirth { get; set; }
     public string BloodType { get; set; } = string.Empty;
-    public string Gender { get; set; } = null!;
+    public Gender Gender { get; set; }
     public string Allergies { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }
     public bool AcceptPrivacy { get; set; }
