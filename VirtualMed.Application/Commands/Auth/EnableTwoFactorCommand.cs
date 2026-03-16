@@ -44,6 +44,9 @@ public class EnableTwoFactorCommandHandler
         if (user == null)
             throw new NotFoundException("Usuario no encontrado.");
 
+        if (user.TwoFactorEnabled)
+            throw new BusinessRuleException("La autenticación de dos factores ya está habilitada para este usuario.");
+
         var secret = _totpService.GenerateSecret();
         var otpauthUri = _totpService.GenerateOtpAuthUri("VirtualMed", user.Email, secret);
         var recoveryCodes = _totpService.GenerateRecoveryCodes(10);
