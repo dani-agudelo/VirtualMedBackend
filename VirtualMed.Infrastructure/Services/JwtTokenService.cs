@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using VirtualMed.Application.Auth;
@@ -23,11 +24,13 @@ public class JwtTokenService : IJwtTokenService
 
     private readonly JwtSettings _settings;
     private readonly byte[] _keyBytes;
+    private readonly ILogger<JwtTokenService> _logger;
 
-    public JwtTokenService(IOptions<JwtSettings> options)
+    public JwtTokenService(IOptions<JwtSettings> options, ILogger<JwtTokenService> logger)
     {
         _settings = options.Value;
         _keyBytes = Encoding.UTF8.GetBytes(_settings.Key);
+        _logger = logger;
     }
 
     public string GenerateAccessToken(UserTokenInfo user, IReadOnlyList<string> permissions)
@@ -132,18 +135,29 @@ public class JwtTokenService : IJwtTokenService
     }
 
     private ClaimsPrincipal? ValidateToken(string token, bool validateLifetime, bool expect2FaTemp)
+{
+    try
     {
-        try
+        var parameters = GetValidationParameters(validateLifetime);
+
+        var handler = new JwtSecurityTokenHandler
         {
-            var parameters = GetValidationParameters(validateLifetime);
-            var principal = new JwtSecurityTokenHandler().ValidateToken(token, parameters, out var validatedToken);
-            if (expect2FaTemp && principal.FindFirst("2fa_temp")?.Value != "1")
-                return null;
-            return principal;
-        }
-        catch
-        {
+            MapInboundClaims = false
+        };
+
+        var principal = handler.ValidateToken(token, parameters, out var validatedToken);
+
+        if (expect2FaTemp && principal.FindFirst("2fa_temp")?.Value != "1")
             return null;
-        }
+
+        return principal;
     }
+    catch (Exception ex)
+    {
+        _logger.LogWarning(ex,
+            "Error validating JWT token. validateLifetime={ValidateLifetime}, expect2FaTemp={Expect2FaTemp}",
+            validateLifetime, expect2FaTemp);
+        return null;
+    }
+}
 }

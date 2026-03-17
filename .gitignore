@@ -41,6 +41,7 @@ bld/
 appsettings.local.json
 appsettings.Development.json
 **/appsettings.Development.json
+appsettings.json
 .env
 .env.local
 
