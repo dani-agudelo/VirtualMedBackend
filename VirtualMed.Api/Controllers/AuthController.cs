@@ -108,7 +108,9 @@ namespace VirtualMed.Api.Controllers
 
         private Guid GetUserId()
         {
-            var claim = User.FindFirst("sub");
+            var claim = User.FindFirst("sub") ??
+                        User.FindFirst(ClaimTypes.NameIdentifier);
+
             if (claim == null || !Guid.TryParse(claim.Value, out var userId))
                 throw new UnauthorizedAccessException("No se pudo determinar el usuario autenticado.");
 
