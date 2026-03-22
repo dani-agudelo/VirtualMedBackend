@@ -5,11 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 using VirtualMed.Api.Models.Auth;
 using VirtualMed.Application.Commands.Auth;
 using VirtualMed.Application.Commands.Doctors;
+using VirtualMed.Application.Commands.Patients;
 
 namespace VirtualMed.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/auth")]
     public class AuthController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -72,6 +73,18 @@ namespace VirtualMed.Api.Controllers
         {
             var id = await _mediator.Send(command);
             return Ok(new { doctorId = id });
+        }
+
+        [HttpPost("register/patient")]
+        [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+        public async Task<IActionResult> RegisterPatient([FromBody] CreatePatientCommand command)
+        {
+            var id = await _mediator.Send(command);
+            return CreatedAtAction(
+                nameof(PatientsController.GetById),
+                "Patients",
+                new { id },
+                new { patientId = id });
         }
 
         [Authorize]

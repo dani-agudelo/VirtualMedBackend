@@ -1,6 +1,5 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using VirtualMed.Application.Commands.Patients;
 using VirtualMed.Application.Queries.Patients;
 
 namespace VirtualMed.Api.Controllers;
@@ -14,13 +13,6 @@ public class PatientsController : ControllerBase
     public PatientsController(IMediator mediator)
     {
         _mediator = mediator;
-    }
-
-    [HttpPost]
-    public async Task<ActionResult<Guid>> Create([FromBody] CreatePatientCommand command)
-    {
-        var id = await _mediator.Send(command);
-        return CreatedAtAction(nameof(GetById), new { id }, id);
     }
 
     [HttpGet("{id:guid}")]
