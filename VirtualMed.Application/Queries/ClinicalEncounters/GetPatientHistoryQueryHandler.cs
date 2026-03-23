@@ -1,0 +1,88 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Interfaces;
+using VirtualMed.Domain.Entities;
+
+namespace VirtualMed.Application.Queries.ClinicalEncounters;
+
+public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQuery, IReadOnlyCollection<ClinicalEncounterListItemDto>>
+{
+    private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
+
+    public GetPatientHistoryQueryHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    {
+        _context = context;
+        _currentUserService = currentUserService;
+    }
+
+    public async Task<IReadOnlyCollection<ClinicalEncounterListItemDto>> Handle(GetPatientHistoryQuery request, CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId
+                     ?? throw new UnauthorizedAccessException("Authenticated user not found.");
+        var role = _currentUserService.Role ?? string.Empty;
+
+        if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
+        {
+            var selfPatientId = await _context.Set<Patient>()
+                .Where(x => x.UserId == userId)
+                .Select(x => (Guid?)x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (!selfPatientId.HasValue || selfPatientId.Value != request.PatientId)
+                throw new UnauthorizedAccessException("You are not allowed to access this patient history.");
+        }
+        else if (string.Equals(role, "Doctor", StringComparison.OrdinalIgnoreCase))
+        {
+            var doctorId = await _context.Set<Doctor>()
+                .Where(x => x.UserId == userId)
+                .Select(x => (Guid?)x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (!doctorId.HasValue)
+                throw new UnauthorizedAccessException("Only doctors can access this patient history.");
+
+            var hasAttendedPatient = await _context.Set<ClinicalEncounter>()
+                .AnyAsync(x => x.Appointment.PatientId == request.PatientId && x.Appointment.DoctorId == doctorId.Value, cancellationToken);
+
+            if (!hasAttendedPatient)
+                throw new UnauthorizedAccessException("Doctor can only access histories of attended patients.");
+        }
+
+        var query = _context.Set<ClinicalEncounter>()
+            .AsNoTracking()
+            .Where(x => x.Appointment.PatientId == request.PatientId);
+
+        if (request.From.HasValue)
+            query = query.Where(x => x.StartAt >= request.From.Value);
+
+        if (request.To.HasValue)
+            query = query.Where(x => x.StartAt <= request.To.Value);
+
+        var data = await query
+            .OrderByDescending(x => x.StartAt)
+            .Select(x => new ClinicalEncounterListItemDto
+            {
+                Id = x.Id,
+                AppointmentId = x.AppointmentId,
+                PatientId = x.Appointment.PatientId,
+                DoctorId = x.Appointment.DoctorId,
+                StartAt = x.StartAt,
+                EndAt = x.EndAt,
+                ChiefComplaint = x.ChiefComplaint,
+                Diagnoses = x.Diagnoses
+                    .Select(d => new DiagnosisDto
+                    {
+                        Id = d.Id,
+                        Icd10Code = d.Icd10Code,
+                        Description = d.Description,
+                        Type = d.Type
+                    })
+                    .ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+        return data;
+    }
+}
+

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VirtualMed.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using VirtualMed.Infrastructure.Persistence;
 namespace VirtualMed.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260323174738_AlignClinicalModelWithER")]
+    partial class AlignClinicalModelWithER
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -70,35 +73,28 @@ namespace VirtualMed.Infrastructure.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("AppUserId")
                         .HasColumnType("text")
                         .HasColumnName("AppUserId");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("CreatedAt")
-                        .HasDefaultValueSql("now()");
+                        .HasColumnName("CreatedAt");
 
                     b.Property<string>("DbUser")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("text")
-                        .HasColumnName("DbUser")
-                        .HasDefaultValueSql("current_user");
+                        .HasColumnName("DbUser");
 
                     b.Property<string>("NewData")
                         .HasColumnType("jsonb")
                         .HasColumnName("NewData");
 
                     b.Property<DateTime>("OccurredAt")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("OccurredAt")
-                        .HasDefaultValueSql("now()");
+                        .HasColumnName("OccurredAt");
 
                     b.Property<string>("OldData")
                         .HasColumnType("jsonb")
@@ -120,10 +116,8 @@ namespace VirtualMed.Infrastructure.Migrations
                         .HasColumnName("TableName");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("UpdatedAt")
-                        .HasDefaultValueSql("now()");
+                        .HasColumnName("UpdatedAt");
 
                     b.HasKey("Id");
 

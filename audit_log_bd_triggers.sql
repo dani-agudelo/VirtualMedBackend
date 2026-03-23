@@ -1,42 +1,37 @@
--- Audit log en BD (PostgreSQL) + created_at/updated_at en tablas de RBAC
--- Alcance (por ahora): roles, permissions, role_permissions
--- Escritura: triggers I/U/D que guardan OldData/NewData (jsonb) en audit_logs.
+-- =============================================================================
+-- audit_log_bd_triggers.sql  (PostgreSQL)
+-- =============================================================================
+-- Alcance: roles, permissions, role_permissions, appointments, clinical_encounters,
+--          diagnoses, prescriptions, medications, prescription_medications
+-- Escritura: triggers I/U/D que INSERTAN filas en audit_logs (OldData/NewData jsonb).
 --
--- Importante:
--- - app.user_id es opcional. Si no existe, audit_log.AppUserId queda NULL.
--- - No se guarda IP (por decisión del sprint/prototipo).
+--
+-- Tablas auditadas aquí:
+--   roles, permissions, role_permissions,
+--   appointments, clinical_encounters, diagnoses, prescriptions,
+--   medications, prescription_medications
+
+-- Notas:
+--   - app.user_id: opcional; la app lo setea vía interceptor antes de SaveChanges.
+-- =============================================================================
 
 BEGIN;
 
+-- -----------------------------------------------------------------------------
+-- 1) Extensión (también puede estar ya aplicada por la migración EF)
+-- -----------------------------------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- =========================
--- audit_logs (tabla central)
--- =========================
-CREATE TABLE IF NOT EXISTS audit_logs (
-    "Id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    "OccurredAt" timestamptz NOT NULL DEFAULT now(),
-    "CreatedAt" timestamptz NOT NULL DEFAULT now(),
-    "UpdatedAt" timestamptz NOT NULL DEFAULT now(),
-
-    "TableName" text NOT NULL,
-    "Operation" char(1) NOT NULL CHECK ("Operation" IN ('I','U','D')),
-    "RowPk" text NOT NULL,
-
-    "OldData" jsonb NULL,
-    "NewData" jsonb NULL,
-
-    "DbUser" text NOT NULL DEFAULT current_user,
-    "AppUserId" text NULL
-);
-
+-- -----------------------------------------------------------------------------
+-- 2) Índices sobre audit_logs (tabla creada por EF; IF NOT EXISTS = idempotente)
+-- -----------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS "IX_audit_logs_OccurredAt" ON audit_logs ("OccurredAt");
 CREATE INDEX IF NOT EXISTS "IX_audit_logs_TableName" ON audit_logs ("TableName");
 CREATE INDEX IF NOT EXISTS "IX_audit_logs_RowPk" ON audit_logs ("RowPk");
 
--- =========================
--- updated_at genérico
--- =========================
+-- -----------------------------------------------------------------------------
+-- 3) Función genérica UpdatedAt
+-- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION set_updated_at_generic()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -47,9 +42,9 @@ BEGIN
 END;
 $$;
 
--- =====================================================
--- app.user_id opcional (dejar NULL si no está seteado)
--- =====================================================
+-- -----------------------------------------------------------------------------
+-- 4) Lectura de app.user_id (SET LOCAL desde la app antes de SaveChanges)
+-- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION audit_get_app_user_id()
 RETURNS text
 LANGUAGE plpgsql
@@ -59,9 +54,11 @@ BEGIN
 END;
 $$;
 
--- =========================================================
--- Roles: created_at/updated_at + audit de cambios (Name)
--- =========================================================
+-- =============================================================================
+-- 5) RBAC y dominio clínico: columnas UpdatedAt + triggers de auditoría
+-- =============================================================================
+
+-- --- roles ---
 ALTER TABLE roles
     ADD COLUMN IF NOT EXISTS "CreatedAt" timestamptz NOT NULL DEFAULT now(),
     ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamptz NOT NULL DEFAULT now();
@@ -282,6 +279,306 @@ CREATE TRIGGER trg_role_permissions_audit_iud
 AFTER INSERT OR UPDATE OR DELETE ON role_permissions
 FOR EACH ROW
 EXECUTE FUNCTION audit_role_permissions_iud();
+
+-- =========================================================
+-- appointments: created_at/updated_at + audit
+-- =========================================================
+ALTER TABLE appointments
+    ADD COLUMN IF NOT EXISTS "CreatedAt" timestamptz NOT NULL DEFAULT now(),
+    ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamptz NOT NULL DEFAULT now();
+
+DROP TRIGGER IF EXISTS trg_appointments_set_updated_at ON appointments;
+CREATE TRIGGER trg_appointments_set_updated_at
+BEFORE UPDATE ON appointments
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_generic();
+
+CREATE OR REPLACE FUNCTION audit_appointments_iud()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    old_json jsonb;
+    new_json jsonb;
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('appointments','I', NEW."Id"::text, NULL, new_json, audit_get_app_user_id());
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+        IF old_json IS DISTINCT FROM new_json THEN
+            INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+            VALUES ('appointments','U', NEW."Id"::text, old_json, new_json, audit_get_app_user_id());
+        END IF;
+        RETURN NEW;
+    ELSE
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('appointments','D', OLD."Id"::text, old_json, NULL, audit_get_app_user_id());
+        RETURN OLD;
+    END IF;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_appointments_audit_iud ON appointments;
+CREATE TRIGGER trg_appointments_audit_iud
+AFTER INSERT OR UPDATE OR DELETE ON appointments
+FOR EACH ROW
+EXECUTE FUNCTION audit_appointments_iud();
+
+-- =========================================================
+-- clinical_encounters: created_at/updated_at + audit
+-- =========================================================
+ALTER TABLE clinical_encounters
+    ADD COLUMN IF NOT EXISTS "CreatedAt" timestamptz NOT NULL DEFAULT now(),
+    ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamptz NOT NULL DEFAULT now();
+
+DROP TRIGGER IF EXISTS trg_clinical_encounters_set_updated_at ON clinical_encounters;
+CREATE TRIGGER trg_clinical_encounters_set_updated_at
+BEFORE UPDATE ON clinical_encounters
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_generic();
+
+CREATE OR REPLACE FUNCTION audit_clinical_encounters_iud()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    old_json jsonb;
+    new_json jsonb;
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('clinical_encounters','I', NEW."Id"::text, NULL, new_json, audit_get_app_user_id());
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+
+        IF old_json IS DISTINCT FROM new_json THEN
+            INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+            VALUES ('clinical_encounters','U', NEW."Id"::text, old_json, new_json, audit_get_app_user_id());
+        END IF;
+        RETURN NEW;
+    ELSE
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('clinical_encounters','D', OLD."Id"::text, old_json, NULL, audit_get_app_user_id());
+        RETURN OLD;
+    END IF;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_clinical_encounters_audit_iud ON clinical_encounters;
+CREATE TRIGGER trg_clinical_encounters_audit_iud
+AFTER INSERT OR UPDATE OR DELETE ON clinical_encounters
+FOR EACH ROW
+EXECUTE FUNCTION audit_clinical_encounters_iud();
+
+-- =========================================================
+-- diagnoses: created_at/updated_at + audit
+-- =========================================================
+ALTER TABLE diagnoses
+    ADD COLUMN IF NOT EXISTS "CreatedAt" timestamptz NOT NULL DEFAULT now(),
+    ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamptz NOT NULL DEFAULT now();
+
+DROP TRIGGER IF EXISTS trg_diagnoses_set_updated_at ON diagnoses;
+CREATE TRIGGER trg_diagnoses_set_updated_at
+BEFORE UPDATE ON diagnoses
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_generic();
+
+CREATE OR REPLACE FUNCTION audit_diagnoses_iud()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    old_json jsonb;
+    new_json jsonb;
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('diagnoses','I', NEW."Id"::text, NULL, new_json, audit_get_app_user_id());
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+        IF old_json IS DISTINCT FROM new_json THEN
+            INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+            VALUES ('diagnoses','U', NEW."Id"::text, old_json, new_json, audit_get_app_user_id());
+        END IF;
+        RETURN NEW;
+    ELSE
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('diagnoses','D', OLD."Id"::text, old_json, NULL, audit_get_app_user_id());
+        RETURN OLD;
+    END IF;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_diagnoses_audit_iud ON diagnoses;
+CREATE TRIGGER trg_diagnoses_audit_iud
+AFTER INSERT OR UPDATE OR DELETE ON diagnoses
+FOR EACH ROW
+EXECUTE FUNCTION audit_diagnoses_iud();
+
+-- =========================================================
+-- prescriptions: created_at/updated_at + audit
+-- =========================================================
+ALTER TABLE prescriptions
+    ADD COLUMN IF NOT EXISTS "CreatedAt" timestamptz NOT NULL DEFAULT now(),
+    ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamptz NOT NULL DEFAULT now();
+
+DROP TRIGGER IF EXISTS trg_prescriptions_set_updated_at ON prescriptions;
+CREATE TRIGGER trg_prescriptions_set_updated_at
+BEFORE UPDATE ON prescriptions
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_generic();
+
+CREATE OR REPLACE FUNCTION audit_prescriptions_iud()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    old_json jsonb;
+    new_json jsonb;
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('prescriptions','I', NEW."Id"::text, NULL, new_json, audit_get_app_user_id());
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+        IF old_json IS DISTINCT FROM new_json THEN
+            INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+            VALUES ('prescriptions','U', NEW."Id"::text, old_json, new_json, audit_get_app_user_id());
+        END IF;
+        RETURN NEW;
+    ELSE
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('prescriptions','D', OLD."Id"::text, old_json, NULL, audit_get_app_user_id());
+        RETURN OLD;
+    END IF;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_prescriptions_audit_iud ON prescriptions;
+CREATE TRIGGER trg_prescriptions_audit_iud
+AFTER INSERT OR UPDATE OR DELETE ON prescriptions
+FOR EACH ROW
+EXECUTE FUNCTION audit_prescriptions_iud();
+
+-- =========================================================
+-- medications: created_at/updated_at + audit
+-- =========================================================
+ALTER TABLE medications
+    ADD COLUMN IF NOT EXISTS "CreatedAt" timestamptz NOT NULL DEFAULT now(),
+    ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamptz NOT NULL DEFAULT now();
+
+DROP TRIGGER IF EXISTS trg_medications_set_updated_at ON medications;
+CREATE TRIGGER trg_medications_set_updated_at
+BEFORE UPDATE ON medications
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_generic();
+
+CREATE OR REPLACE FUNCTION audit_medications_iud()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    old_json jsonb;
+    new_json jsonb;
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('medications','I', NEW."Id"::text, NULL, new_json, audit_get_app_user_id());
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+        IF old_json IS DISTINCT FROM new_json THEN
+            INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+            VALUES ('medications','U', NEW."Id"::text, old_json, new_json, audit_get_app_user_id());
+        END IF;
+        RETURN NEW;
+    ELSE
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('medications','D', OLD."Id"::text, old_json, NULL, audit_get_app_user_id());
+        RETURN OLD;
+    END IF;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_medications_audit_iud ON medications;
+CREATE TRIGGER trg_medications_audit_iud
+AFTER INSERT OR UPDATE OR DELETE ON medications
+FOR EACH ROW
+EXECUTE FUNCTION audit_medications_iud();
+
+-- =========================================================
+-- prescription_medications: created_at/updated_at + audit
+-- =========================================================
+ALTER TABLE prescription_medications
+    ADD COLUMN IF NOT EXISTS "CreatedAt" timestamptz NOT NULL DEFAULT now(),
+    ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamptz NOT NULL DEFAULT now();
+
+DROP TRIGGER IF EXISTS trg_prescription_medications_set_updated_at ON prescription_medications;
+CREATE TRIGGER trg_prescription_medications_set_updated_at
+BEFORE UPDATE ON prescription_medications
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_generic();
+
+CREATE OR REPLACE FUNCTION audit_prescription_medications_iud()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    old_json jsonb;
+    new_json jsonb;
+    pk text;
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        pk := format('PrescriptionId=%s;MedicationId=%s', NEW."PrescriptionId"::text, NEW."MedicationId"::text);
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('prescription_medications','I', pk, NULL, new_json, audit_get_app_user_id());
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        pk := format('PrescriptionId=%s;MedicationId=%s', NEW."PrescriptionId"::text, NEW."MedicationId"::text);
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        new_json := to_jsonb(NEW) - 'CreatedAt' - 'UpdatedAt';
+        IF old_json IS DISTINCT FROM new_json THEN
+            INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+            VALUES ('prescription_medications','U', pk, old_json, new_json, audit_get_app_user_id());
+        END IF;
+        RETURN NEW;
+    ELSE
+        pk := format('PrescriptionId=%s;MedicationId=%s', OLD."PrescriptionId"::text, OLD."MedicationId"::text);
+        old_json := to_jsonb(OLD) - 'CreatedAt' - 'UpdatedAt';
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('prescription_medications','D', pk, old_json, NULL, audit_get_app_user_id());
+        RETURN OLD;
+    END IF;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_prescription_medications_audit_iud ON prescription_medications;
+CREATE TRIGGER trg_prescription_medications_audit_iud
+AFTER INSERT OR UPDATE OR DELETE ON prescription_medications
+FOR EACH ROW
+EXECUTE FUNCTION audit_prescription_medications_iud();
 
 -- audit_logs updated_at (opcional; por ahora no se actualiza)
 DROP TRIGGER IF EXISTS trg_audit_logs_set_updated_at ON audit_logs;

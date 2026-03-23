@@ -19,6 +19,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<TwoFactorAuth> TwoFactorAuths => Set<TwoFactorAuth>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<ClinicalEncounter> ClinicalEncounters => Set<ClinicalEncounter>();
+    public DbSet<Diagnosis> Diagnoses => Set<Diagnosis>();
+    public DbSet<Prescription> Prescriptions => Set<Prescription>();
+    public DbSet<Medication> Medications => Set<Medication>();
+    public DbSet<PrescriptionMedication> PrescriptionMedications => Set<PrescriptionMedication>();
 
     IQueryable<T> IApplicationDbContext.Set<T>() => Set<T>();
 
