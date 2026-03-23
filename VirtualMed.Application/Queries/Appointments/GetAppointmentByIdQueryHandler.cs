@@ -1,0 +1,93 @@
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Interfaces;
+using VirtualMed.Domain.Entities;
+
+namespace VirtualMed.Application.Queries.Appointments;
+
+public class GetAppointmentByIdQueryHandler : IRequestHandler<GetAppointmentByIdQuery, AppointmentDto?>
+{
+    private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
+
+    public GetAppointmentByIdQueryHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    {
+        _context = context;
+        _currentUserService = currentUserService;
+    }
+
+    public async Task<AppointmentDto?> Handle(GetAppointmentByIdQuery request, CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId
+                     ?? throw new UnauthorizedAccessException("Authenticated user not found.");
+        var role = _currentUserService.Role ?? string.Empty;
+
+        var appointment = await _context.Set<Appointment>()
+            .AsNoTracking()
+            .Include(a => a.ClinicalEncounter)
+            .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
+
+        if (appointment is null)
+            return null;
+
+        await EnsureCanReadAsync(appointment, userId, role, cancellationToken);
+
+        return ToDto(appointment);
+    }
+
+    private async Task EnsureCanReadAsync(
+        Appointment appointment,
+        Guid userId,
+        string role,
+        CancellationToken cancellationToken)
+    {
+        if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
+        {
+            var selfPatientId = await _context.Set<Patient>()
+                .Where(x => x.UserId == userId)
+                .Select(x => (Guid?)x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (!selfPatientId.HasValue || selfPatientId.Value != appointment.PatientId)
+                throw new UnauthorizedAccessException("You are not allowed to view this appointment.");
+
+            return;
+        }
+
+        if (IsDoctorLikeRole(role))
+        {
+            var doctor = await _context.Set<Doctor>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.UserId == userId, cancellationToken);
+
+            if (doctor is null || appointment.DoctorId != doctor.Id)
+                throw new UnauthorizedAccessException("You are not allowed to view this appointment.");
+
+            return;
+        }
+
+        throw new UnauthorizedAccessException("You are not allowed to view appointments.");
+    }
+
+    private static AppointmentDto ToDto(Appointment a) =>
+        new()
+        {
+            Id = a.Id,
+            PatientId = a.PatientId,
+            DoctorId = a.DoctorId,
+            ScheduledAt = a.ScheduledAt,
+            DurationMinutes = a.DurationMinutes,
+            Status = a.Status,
+            Reason = a.Reason,
+            CreatedAt = a.CreatedAt,
+            UpdatedAt = a.UpdatedAt,
+            HasClinicalEncounter = a.ClinicalEncounter != null
+        };
+
+    private static bool IsDoctorLikeRole(string role) =>
+        string.Equals(role, "Doctor", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(role, "Specialist", StringComparison.OrdinalIgnoreCase);
+}

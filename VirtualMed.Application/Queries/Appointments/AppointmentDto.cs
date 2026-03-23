@@ -1,24 +1,17 @@
 using VirtualMed.Domain.Enums;
 
-namespace VirtualMed.Domain.Entities;
+namespace VirtualMed.Application.Queries.Appointments;
 
-public class Appointment
+public class AppointmentDto
 {
     public Guid Id { get; set; }
     public Guid PatientId { get; set; }
-    public Patient Patient { get; set; } = null!;
-
     public Guid DoctorId { get; set; }
-    public Doctor Doctor { get; set; } = null!;
-
     public DateTime ScheduledAt { get; set; }
     public int DurationMinutes { get; set; }
-    public AppointmentStatus Status { get; set; } = AppointmentStatus.Scheduled;
+    public AppointmentStatus Status { get; set; }
     public string? Reason { get; set; }
-
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-
-    public ClinicalEncounter? ClinicalEncounter { get; set; }
+    public bool HasClinicalEncounter { get; set; }
 }
-

@@ -11,7 +11,10 @@ public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
         builder.ToTable("appointments");
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.Status).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.Status)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .IsRequired();
         builder.Property(x => x.Reason).HasMaxLength(1000);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired();
