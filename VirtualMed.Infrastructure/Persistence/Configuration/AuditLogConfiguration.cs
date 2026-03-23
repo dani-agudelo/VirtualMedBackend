@@ -12,17 +12,24 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
 
         builder.HasKey(x => x.Id);
 
+        // DEFAULTs para INSERTs desde triggers SQL (no envían Id ni timestamps).
+        builder.Property(x => x.Id)
+            .HasDefaultValueSql("gen_random_uuid()");
+
         builder.Property(x => x.OccurredAt)
             .HasColumnName("OccurredAt")
-            .IsRequired();
+            .IsRequired()
+            .HasDefaultValueSql("now()");
 
         builder.Property(x => x.CreatedAt)
             .HasColumnName("CreatedAt")
-            .IsRequired();
+            .IsRequired()
+            .HasDefaultValueSql("now()");
 
         builder.Property(x => x.UpdatedAt)
             .HasColumnName("UpdatedAt")
-            .IsRequired();
+            .IsRequired()
+            .HasDefaultValueSql("now()");
 
         builder.Property(x => x.TableName)
             .HasColumnName("TableName")
@@ -46,7 +53,8 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
 
         builder.Property(x => x.DbUser)
             .HasColumnName("DbUser")
-            .IsRequired();
+            .IsRequired()
+            .HasDefaultValueSql("current_user");
 
         builder.Property(x => x.AppUserId)
             .HasColumnName("AppUserId");

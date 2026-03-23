@@ -23,6 +23,7 @@ using System.Text;
 using VirtualMed.Application.Configuration;
 using VirtualMed.Infrastructure.Configuration;
 using VirtualMed.Api.Authorization;
+using VirtualMed.Api.Services;
 using AspNetCoreRateLimit;
 using VirtualMed.Infrastructure.Persistence.Interceptors;
 
@@ -159,6 +160,7 @@ builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<ITotpService, TotpService>();
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<AuditUserIdSaveChangesInterceptor>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
