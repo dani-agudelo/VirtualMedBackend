@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
 
@@ -72,7 +73,7 @@ public class GetPrescriptionByIdQueryHandler : IRequestHandler<GetPrescriptionBy
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (!selfPatientId.HasValue || selfPatientId.Value != prescription.PatientId)
-                throw new UnauthorizedAccessException("You are not allowed to view this prescription.");
+                throw new ForbiddenException("No tiene permiso para ver esta receta.");
 
             return;
         }
@@ -84,12 +85,12 @@ public class GetPrescriptionByIdQueryHandler : IRequestHandler<GetPrescriptionBy
                 .FirstOrDefaultAsync(d => d.UserId == userId, cancellationToken);
 
             if (doctor is null || prescription.DoctorId != doctor.Id)
-                throw new UnauthorizedAccessException("You are not allowed to view this prescription.");
+                throw new ForbiddenException("No tiene permiso para ver esta receta.");
 
             return;
         }
 
-        throw new UnauthorizedAccessException("You are not allowed to view prescriptions.");
+        throw new ForbiddenException("No tiene permiso para ver recetas.");
     }
 
     private static bool IsDoctorLikeRole(string role) =>

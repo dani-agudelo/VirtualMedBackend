@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
 
@@ -25,7 +26,7 @@ public class GetClinicalEncounterByIdQueryHandler : IRequestHandler<GetClinicalE
         if (!string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase)
             && !IsDoctorLikeRole(role))
-            throw new UnauthorizedAccessException("You are not allowed to access this clinical encounter.");
+            throw new ForbiddenException("No tiene permiso para acceder a este encuentro clínico.");
 
         var encounter = await _context.Set<ClinicalEncounter>()
             .AsNoTracking()
@@ -37,7 +38,7 @@ public class GetClinicalEncounterByIdQueryHandler : IRequestHandler<GetClinicalE
             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
         if (encounter is null)
-            throw new InvalidOperationException("Clinical encounter not found.");
+            throw new NotFoundException("Encuentro clínico", request.Id);
 
         if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
         {
@@ -51,7 +52,7 @@ public class GetClinicalEncounterByIdQueryHandler : IRequestHandler<GetClinicalE
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (!selfPatientId.HasValue || selfPatientId.Value != encounter.Appointment.PatientId)
-                throw new UnauthorizedAccessException("You are not allowed to access this clinical encounter.");
+                throw new ForbiddenException("No tiene permiso para acceder a este encuentro clínico.");
         }
         else if (IsDoctorLikeRole(role))
         {
@@ -61,13 +62,13 @@ public class GetClinicalEncounterByIdQueryHandler : IRequestHandler<GetClinicalE
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (!doctorId.HasValue)
-                throw new UnauthorizedAccessException("Only users with a doctor profile can access this clinical encounter.");
+                throw new ForbiddenException("Solo los usuarios con perfil médico pueden acceder a este encuentro.");
 
             var hasAttendedPatient = await _context.Set<ClinicalEncounter>()
                 .AnyAsync(x => x.Appointment.PatientId == encounter.Appointment.PatientId && x.Appointment.DoctorId == doctorId.Value, cancellationToken);
 
             if (!hasAttendedPatient)
-                throw new UnauthorizedAccessException("Doctor can only access records of attended patients.");
+                throw new ForbiddenException("Solo puede acceder a registros de pacientes que haya atendido.");
         }
 
         return new ClinicalEncounterDetailDto

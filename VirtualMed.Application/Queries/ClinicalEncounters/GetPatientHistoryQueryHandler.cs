@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
 
@@ -34,7 +35,7 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (!selfPatientId.HasValue || selfPatientId.Value != request.PatientId)
-                throw new UnauthorizedAccessException("You are not allowed to access this patient history.");
+                throw new ForbiddenException("No tiene permiso para acceder al historial de este paciente.");
         }
         else if (IsDoctorLikeRole(role))
         {
@@ -44,16 +45,16 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (!doctorId.HasValue)
-                throw new UnauthorizedAccessException("Only users with a doctor profile can access this patient history.");
+                throw new ForbiddenException("Solo los usuarios con perfil médico pueden acceder a este historial.");
 
             var hasAttendedPatient = await _context.Set<ClinicalEncounter>()
                 .AnyAsync(x => x.Appointment.PatientId == request.PatientId && x.Appointment.DoctorId == doctorId.Value, cancellationToken);
 
             if (!hasAttendedPatient)
-                throw new UnauthorizedAccessException("Doctor can only access histories of attended patients.");
+                throw new ForbiddenException("Solo puede acceder al historial de pacientes que haya atendido.");
         }
         else
-            throw new UnauthorizedAccessException("You are not allowed to access this patient history.");
+            throw new ForbiddenException("No tiene permiso para acceder al historial del paciente.");
 
         var query = _context.Set<ClinicalEncounter>()
             .AsNoTracking()

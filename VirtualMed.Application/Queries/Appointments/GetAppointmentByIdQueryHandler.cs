@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
 
@@ -52,7 +53,7 @@ public class GetAppointmentByIdQueryHandler : IRequestHandler<GetAppointmentById
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (!selfPatientId.HasValue || selfPatientId.Value != appointment.PatientId)
-                throw new UnauthorizedAccessException("You are not allowed to view this appointment.");
+                throw new ForbiddenException("No tiene permiso para ver esta cita.");
 
             return;
         }
@@ -64,12 +65,12 @@ public class GetAppointmentByIdQueryHandler : IRequestHandler<GetAppointmentById
                 .FirstOrDefaultAsync(d => d.UserId == userId, cancellationToken);
 
             if (doctor is null || appointment.DoctorId != doctor.Id)
-                throw new UnauthorizedAccessException("You are not allowed to view this appointment.");
+                throw new ForbiddenException("No tiene permiso para ver esta cita.");
 
             return;
         }
 
-        throw new UnauthorizedAccessException("You are not allowed to view appointments.");
+        throw new ForbiddenException("No tiene permiso para ver citas.");
     }
 
     private static AppointmentDto ToDto(Appointment a) =>

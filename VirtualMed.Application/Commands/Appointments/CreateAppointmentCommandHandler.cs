@@ -1,7 +1,10 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Common.Exceptions;
+using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
+
 namespace VirtualMed.Application.Commands.Appointments;
 
 public class CreateAppointmentCommandHandler : IRequestHandler<CreateAppointmentCommand, Guid>
@@ -26,7 +29,7 @@ public class CreateAppointmentCommandHandler : IRequestHandler<CreateAppointment
         if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
         {
             if (!request.DoctorId.HasValue)
-                throw new InvalidOperationException("DoctorId is required when creating an appointment as Admin.");
+                throw new BusinessRuleException("DoctorId es obligatorio al crear una cita como administrador.");
 
             doctorEntityId = request.DoctorId.Value;
         }
@@ -37,15 +40,15 @@ public class CreateAppointmentCommandHandler : IRequestHandler<CreateAppointment
                 .FirstOrDefaultAsync(d => d.UserId == userId, cancellationToken);
 
             if (doctor is null)
-                throw new UnauthorizedAccessException("Only users with a doctor profile can create appointments.");
+                throw new ForbiddenException("Solo los usuarios con perfil médico pueden crear citas.");
 
             doctorEntityId = doctor.Id;
 
             if (request.DoctorId.HasValue && request.DoctorId.Value != doctorEntityId)
-                throw new UnauthorizedAccessException("Cannot assign a different doctor than the authenticated user.");
+                throw new ForbiddenException("No puede asignar un médico distinto al usuario autenticado.");
         }
         else
-            throw new UnauthorizedAccessException("You are not allowed to create appointments.");
+            throw new ForbiddenException("No tiene permiso para crear citas.");
 
         var now = DateTime.UtcNow;
 

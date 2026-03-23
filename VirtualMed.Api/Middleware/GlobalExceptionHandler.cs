@@ -1,9 +1,10 @@
-using System.Net;
 using System.Text.Json;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using VirtualMed.Api.Models;
 using VirtualMed.Application.Common.Exceptions;
+using VirtualMed.Application.Exceptions;
+using AppInvalidOperationException = VirtualMed.Application.Exceptions.InvalidOperationException;
 
 namespace VirtualMed.Api.Middleware;
 
@@ -57,6 +58,10 @@ public class GlobalExceptionHandler : IExceptionHandler
         {
             ValidationException => (400, "VALIDATION_ERROR", "Datos de entrada inválidos"),
             UnauthorizedAccessException => (401, "UNAUTHORIZED", exception.Message),
+            ForbiddenException => (403, "FORBIDDEN", exception.Message),
+            NotFoundException => (404, "NOT_FOUND", exception.Message),
+            DuplicateEntityException => (409, "CONFLICT", exception.Message),
+            AppInvalidOperationException => (409, "BUSINESS_ERROR", exception.Message),
             BusinessRuleException => (409, "BUSINESS_ERROR", exception.Message),
             ExternalServiceException => (503, "EXTERNAL_SERVICE_ERROR", "Servicio externo no disponible temporalmente"),
             _ => (500, "INTERNAL_ERROR", "Ha ocurrido un error interno. Use el traceId para soporte.")

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
 
@@ -48,7 +49,7 @@ public class ListAppointmentsQueryHandler : IRequestHandler<ListAppointmentsQuer
 
             query = query.Where(a => a.PatientId == selfPatientId.Value);
             if (request.PatientId.HasValue && request.PatientId.Value != selfPatientId.Value)
-                throw new UnauthorizedAccessException("You can only list your own appointments.");
+                throw new ForbiddenException("Solo puede listar sus propias citas.");
         }
         else if (IsDoctorLikeRole(role))
         {
@@ -61,7 +62,7 @@ public class ListAppointmentsQueryHandler : IRequestHandler<ListAppointmentsQuer
 
             query = query.Where(a => a.DoctorId == doctor.Id);
             if (request.DoctorId.HasValue && request.DoctorId.Value != doctor.Id)
-                throw new UnauthorizedAccessException("You can only list your own appointments.");
+                throw new ForbiddenException("Solo puede listar sus propias citas.");
         }
         else if (string.Equals(role, "FamilyMember", StringComparison.OrdinalIgnoreCase))
         {
@@ -69,7 +70,7 @@ public class ListAppointmentsQueryHandler : IRequestHandler<ListAppointmentsQuer
             return Array.Empty<AppointmentDto>();
         }
         else
-            throw new UnauthorizedAccessException("You are not allowed to list appointments.");
+            throw new ForbiddenException("No tiene permiso para listar citas.");
 
         if (request.From.HasValue)
             query = query.Where(a => a.ScheduledAt >= request.From.Value);

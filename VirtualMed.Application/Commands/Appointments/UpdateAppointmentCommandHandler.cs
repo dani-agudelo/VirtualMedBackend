@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
 
@@ -26,7 +27,7 @@ public class UpdateAppointmentCommandHandler : IRequestHandler<UpdateAppointment
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
         if (appointment is null)
-            throw new InvalidOperationException("Appointment not found.");
+            throw new NotFoundException("Cita", request.Id);
 
         await EnsureCanModifyAppointmentAsync(appointment, userId, role, cancellationToken);
 
@@ -63,12 +64,12 @@ public class UpdateAppointmentCommandHandler : IRequestHandler<UpdateAppointment
                 .FirstOrDefaultAsync(d => d.UserId == userId, cancellationToken);
 
             if (doctor is null || appointment.DoctorId != doctor.Id)
-                throw new UnauthorizedAccessException("You can only update your own appointments.");
+                throw new ForbiddenException("Solo puede actualizar sus propias citas.");
 
             return;
         }
 
-        throw new UnauthorizedAccessException("You are not allowed to update appointments.");
+        throw new ForbiddenException("No tiene permiso para actualizar citas.");
     }
 
     private static bool IsDoctorLikeRole(string role) =>

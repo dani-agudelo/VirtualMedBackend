@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
 
@@ -27,7 +28,7 @@ public class CreatePrescriptionCommandHandler : IRequestHandler<CreatePrescripti
             .FirstOrDefaultAsync(e => e.Id == request.EncounterId, cancellationToken);
 
         if (encounter is null)
-            throw new InvalidOperationException("Clinical encounter not found.");
+            throw new NotFoundException("Encuentro clínico", request.EncounterId);
 
         await EnsureCanCreatePrescriptionAsync(encounter, userId, role, cancellationToken);
 
@@ -92,12 +93,12 @@ public class CreatePrescriptionCommandHandler : IRequestHandler<CreatePrescripti
                 .FirstOrDefaultAsync(d => d.UserId == userId, cancellationToken);
 
             if (doctor is null || encounter.Appointment.DoctorId != doctor.Id)
-                throw new UnauthorizedAccessException("Only the assigned doctor can create prescriptions for this encounter.");
+                throw new ForbiddenException("Solo el médico asignado puede crear recetas para este encuentro.");
 
             return;
         }
 
-        throw new UnauthorizedAccessException("You are not allowed to create prescriptions.");
+        throw new ForbiddenException("No tiene permiso para crear recetas.");
     }
 
     private async Task<Guid> ResolveMedicationIdAsync(
@@ -111,7 +112,7 @@ public class CreatePrescriptionCommandHandler : IRequestHandler<CreatePrescripti
             var exists = await _context.Set<Medication>()
                 .AnyAsync(m => m.Id == line.MedicationId.Value, cancellationToken);
             if (!exists)
-                throw new InvalidOperationException($"Medication {line.MedicationId} not found.");
+                throw new NotFoundException("Medicamento", line.MedicationId!.Value);
 
             return line.MedicationId.Value;
         }

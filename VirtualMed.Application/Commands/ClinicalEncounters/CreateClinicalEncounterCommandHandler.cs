@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
 
@@ -28,17 +29,17 @@ public class CreateClinicalEncounterCommandHandler : IRequestHandler<CreateClini
             .FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
 
         if (doctor is null)
-            throw new UnauthorizedAccessException("Only doctors can create clinical encounters.");
+            throw new ForbiddenException("Solo los médicos pueden crear encuentros clínicos.");
 
         var appointment = await _context.Set<Appointment>()
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == request.AppointmentId, cancellationToken);
 
         if (appointment is null)
-            throw new InvalidOperationException("Appointment not found.");
+            throw new NotFoundException("Cita", request.AppointmentId);
 
         if (appointment.DoctorId != doctor.Id)
-            throw new UnauthorizedAccessException("Doctor can only create encounters for assigned appointments.");
+            throw new ForbiddenException("Solo puede crear encuentros para citas asignadas a usted.");
 
         var now = DateTime.UtcNow;
         var encounter = new ClinicalEncounter

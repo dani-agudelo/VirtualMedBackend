@@ -110,7 +110,7 @@ public class RolePermissionSeeder
             "Admin" => new List<string>
             {
                 "Auth:2FA:Manage", "Patient:Read", "Patient:Create", "Appointment:Read", "Appointment:Create", "Appointment:Update",
-                "ClinicalEncounter:Read", "ClinicalEncounter:Create", "ClinicalEncounter:Update",
+                "ClinicalEncounter:Read",
                 "Prescription:Read", "Prescription:Create", "VitalMetric:Read", "VitalMetric:Create",
                 "Role:Read", "Role:Create", "Role:Update", "User:Read", "User:ManageRoles", "Doctor:Approve"
             },
