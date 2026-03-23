@@ -22,6 +22,11 @@ public class GetClinicalEncounterByIdQueryHandler : IRequestHandler<GetClinicalE
                      ?? throw new UnauthorizedAccessException("Authenticated user not found.");
         var role = _currentUserService.Role ?? string.Empty;
 
+        if (!string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase)
+            && !IsDoctorLikeRole(role))
+            throw new UnauthorizedAccessException("You are not allowed to access this clinical encounter.");
+
         var encounter = await _context.Set<ClinicalEncounter>()
             .AsNoTracking()
             .Include(x => x.Appointment)
@@ -34,7 +39,11 @@ public class GetClinicalEncounterByIdQueryHandler : IRequestHandler<GetClinicalE
         if (encounter is null)
             throw new InvalidOperationException("Clinical encounter not found.");
 
-        if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
+        {
+            // Acceso completo.
+        }
+        else if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
         {
             var selfPatientId = await _context.Set<Patient>()
                 .Where(x => x.UserId == userId)
@@ -44,7 +53,7 @@ public class GetClinicalEncounterByIdQueryHandler : IRequestHandler<GetClinicalE
             if (!selfPatientId.HasValue || selfPatientId.Value != encounter.Appointment.PatientId)
                 throw new UnauthorizedAccessException("You are not allowed to access this clinical encounter.");
         }
-        else if (string.Equals(role, "Doctor", StringComparison.OrdinalIgnoreCase))
+        else if (IsDoctorLikeRole(role))
         {
             var doctorId = await _context.Set<Doctor>()
                 .Where(x => x.UserId == userId)
@@ -52,7 +61,7 @@ public class GetClinicalEncounterByIdQueryHandler : IRequestHandler<GetClinicalE
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (!doctorId.HasValue)
-                throw new UnauthorizedAccessException("Only doctors can access this clinical encounter.");
+                throw new UnauthorizedAccessException("Only users with a doctor profile can access this clinical encounter.");
 
             var hasAttendedPatient = await _context.Set<ClinicalEncounter>()
                 .AnyAsync(x => x.Appointment.PatientId == encounter.Appointment.PatientId && x.Appointment.DoctorId == doctorId.Value, cancellationToken);
@@ -102,5 +111,9 @@ public class GetClinicalEncounterByIdQueryHandler : IRequestHandler<GetClinicalE
             }).ToList()
         };
     }
+
+    private static bool IsDoctorLikeRole(string role) =>
+        string.Equals(role, "Doctor", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(role, "Specialist", StringComparison.OrdinalIgnoreCase);
 }
 

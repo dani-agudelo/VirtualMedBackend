@@ -22,7 +22,11 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
                      ?? throw new UnauthorizedAccessException("Authenticated user not found.");
         var role = _currentUserService.Role ?? string.Empty;
 
-        if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
+        {
+            // Sin restricción adicional.
+        }
+        else if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
         {
             var selfPatientId = await _context.Set<Patient>()
                 .Where(x => x.UserId == userId)
@@ -32,7 +36,7 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
             if (!selfPatientId.HasValue || selfPatientId.Value != request.PatientId)
                 throw new UnauthorizedAccessException("You are not allowed to access this patient history.");
         }
-        else if (string.Equals(role, "Doctor", StringComparison.OrdinalIgnoreCase))
+        else if (IsDoctorLikeRole(role))
         {
             var doctorId = await _context.Set<Doctor>()
                 .Where(x => x.UserId == userId)
@@ -40,7 +44,7 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (!doctorId.HasValue)
-                throw new UnauthorizedAccessException("Only doctors can access this patient history.");
+                throw new UnauthorizedAccessException("Only users with a doctor profile can access this patient history.");
 
             var hasAttendedPatient = await _context.Set<ClinicalEncounter>()
                 .AnyAsync(x => x.Appointment.PatientId == request.PatientId && x.Appointment.DoctorId == doctorId.Value, cancellationToken);
@@ -48,6 +52,8 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
             if (!hasAttendedPatient)
                 throw new UnauthorizedAccessException("Doctor can only access histories of attended patients.");
         }
+        else
+            throw new UnauthorizedAccessException("You are not allowed to access this patient history.");
 
         var query = _context.Set<ClinicalEncounter>()
             .AsNoTracking()
@@ -84,5 +90,9 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
 
         return data;
     }
+
+    private static bool IsDoctorLikeRole(string role) =>
+        string.Equals(role, "Doctor", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(role, "Specialist", StringComparison.OrdinalIgnoreCase);
 }
 
