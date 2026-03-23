@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<TwoFactorAuth> TwoFactorAuths => Set<TwoFactorAuth>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     IQueryable<T> IApplicationDbContext.Set<T>() => Set<T>();
 
