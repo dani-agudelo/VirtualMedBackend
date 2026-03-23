@@ -24,6 +24,7 @@ using VirtualMed.Application.Configuration;
 using VirtualMed.Infrastructure.Configuration;
 using VirtualMed.Api.Authorization;
 using AspNetCoreRateLimit;
+using VirtualMed.Infrastructure.Persistence.Interceptors;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -157,9 +158,15 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<ITotpService, TotpService>();
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AuditUserIdSaveChangesInterceptor>();
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
+{
+    options.UseNpgsql(connectionString);
+    options.AddInterceptors(sp.GetRequiredService<AuditUserIdSaveChangesInterceptor>());
+});
 
 builder.Services.AddScoped<RolePermissionSeeder>();
 
