@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VirtualMed.Api.Authorization;
+using VirtualMed.Api.Models.ClinicalEncounters;
 using VirtualMed.Application.Commands.ClinicalEncounters;
 using VirtualMed.Application.Queries.ClinicalEncounters;
 
@@ -44,6 +45,35 @@ public class ClinicalEncountersController : ControllerBase
     {
         var result = await _mediator.Send(new GetClinicalEncounterByIdQuery(id));
         return Ok(result);
+    }
+
+    [HttpPut("{id:guid}")]
+    [RequirePermission("ClinicalEncounter", "Update")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateClinicalEncounterBody body)
+    {
+        IReadOnlyCollection<UpdateClinicalEncounterDiagnosisItem>? dx = null;
+        if (body.Diagnoses is not null)
+        {
+            dx = body.Diagnoses
+                .Select(d => new UpdateClinicalEncounterDiagnosisItem(d.Icd10Code, d.Description, d.Type))
+                .ToList();
+        }
+
+        await _mediator.Send(new UpdateClinicalEncounterCommand(
+            id,
+            body.StartAt,
+            body.EndAt,
+            body.ChiefComplaint,
+            body.CurrentCondition,
+            body.PhysicalExam,
+            body.Assessment,
+            body.Plan,
+            body.Notes,
+            body.RecordingUrl,
+            body.IsLocked,
+            dx));
+
+        return NoContent();
     }
 }
 

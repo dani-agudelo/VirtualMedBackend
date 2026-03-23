@@ -30,7 +30,7 @@ public class RolePermissionSeeder
             new() { Id = Guid.NewGuid(), Name = "Appointment:Update", Resource = "Appointment", Action = "Update", Description = "Actualizar citas" },
             new() { Id = Guid.NewGuid(), Name = "ClinicalEncounter:Read", Resource = "ClinicalEncounter", Action = "Read", Description = "Ver encuentros clínicos" },
             new() { Id = Guid.NewGuid(), Name = "ClinicalEncounter:Create", Resource = "ClinicalEncounter", Action = "Create", Description = "Crear encuentros" },
-            new() { Id = Guid.NewGuid(), Name = "ClinicalEncounter:Update", Resource = "ClinicalEncounter", Action = "Update", Description = "Actualizar encuentros" },
+            new() { Id = Guid.NewGuid(), Name = "ClinicalEncounter:Update", Resource = "ClinicalEncounter", Action = "Update", Description = "Actualizar encuentros (solo administración)" },
             new() { Id = Guid.NewGuid(), Name = "Prescription:Read", Resource = "Prescription", Action = "Read", Description = "Ver recetas" },
             new() { Id = Guid.NewGuid(), Name = "Prescription:Create", Resource = "Prescription", Action = "Create", Description = "Crear recetas" },
             new() { Id = Guid.NewGuid(), Name = "VitalMetric:Read", Resource = "VitalMetric", Action = "Read", Description = "Ver métricas vitales" },
@@ -98,19 +98,19 @@ public class RolePermissionSeeder
             "Doctor" => new List<string>
             {
                 "Auth:2FA:Manage", "Patient:Read", "Patient:Create", "Appointment:Read", "Appointment:Create", "Appointment:Update",
-                "ClinicalEncounter:Read", "ClinicalEncounter:Create", "ClinicalEncounter:Update",
+                "ClinicalEncounter:Read", "ClinicalEncounter:Create",
                 "Prescription:Read", "Prescription:Create", "VitalMetric:Read", "VitalMetric:Create"
             },
             "Specialist" => new List<string>
             {
                 "Auth:2FA:Manage", "Patient:Read", "Appointment:Read", "Appointment:Create", "Appointment:Update",
-                "ClinicalEncounter:Read", "ClinicalEncounter:Create", "ClinicalEncounter:Update",
+                "ClinicalEncounter:Read", "ClinicalEncounter:Create",
                 "Prescription:Read", "Prescription:Create", "VitalMetric:Read"
             },
             "Admin" => new List<string>
             {
                 "Auth:2FA:Manage", "Patient:Read", "Patient:Create", "Appointment:Read", "Appointment:Create", "Appointment:Update",
-                "ClinicalEncounter:Read",
+                "ClinicalEncounter:Read", "ClinicalEncounter:Update",
                 "Prescription:Read", "Prescription:Create", "VitalMetric:Read", "VitalMetric:Create",
                 "Role:Read", "Role:Create", "Role:Update", "User:Read", "User:ManageRoles", "Doctor:Approve"
             },
