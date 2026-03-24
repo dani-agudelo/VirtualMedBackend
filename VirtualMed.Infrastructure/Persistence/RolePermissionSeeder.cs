@@ -15,110 +15,263 @@ public class RolePermissionSeeder
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
-        if (await _context.Permissions.AnyAsync(cancellationToken))
-            return;
-
-        var permissions = new List<Permission>
-        {
-            new() { Id = Guid.NewGuid(), Name = "Auth:2FA:Manage", Resource = "Auth", Action = "2FA:Manage", Description = "Habilitar/deshabilitar 2FA" },
-            new() { Id = Guid.NewGuid(), Name = "Patient:ReadOwn", Resource = "Patient", Action = "ReadOwn", Description = "Ver propio perfil de paciente" },
-            new() { Id = Guid.NewGuid(), Name = "Patient:UpdateOwn", Resource = "Patient", Action = "UpdateOwn", Description = "Actualizar propio perfil" },
-            new() { Id = Guid.NewGuid(), Name = "Patient:Read", Resource = "Patient", Action = "Read", Description = "Ver pacientes (médico/admin)" },
-            new() { Id = Guid.NewGuid(), Name = "Patient:Create", Resource = "Patient", Action = "Create", Description = "Registrar pacientes" },
-            new() { Id = Guid.NewGuid(), Name = "Appointment:Read", Resource = "Appointment", Action = "Read", Description = "Ver citas" },
-            new() { Id = Guid.NewGuid(), Name = "Appointment:Create", Resource = "Appointment", Action = "Create", Description = "Crear citas" },
-            new() { Id = Guid.NewGuid(), Name = "Appointment:Update", Resource = "Appointment", Action = "Update", Description = "Actualizar citas" },
-            new() { Id = Guid.NewGuid(), Name = "ClinicalEncounter:Read", Resource = "ClinicalEncounter", Action = "Read", Description = "Ver encuentros clínicos" },
-            new() { Id = Guid.NewGuid(), Name = "ClinicalEncounter:Create", Resource = "ClinicalEncounter", Action = "Create", Description = "Crear encuentros" },
-            new() { Id = Guid.NewGuid(), Name = "ClinicalEncounter:Update", Resource = "ClinicalEncounter", Action = "Update", Description = "Actualizar encuentros (solo administración)" },
-            new() { Id = Guid.NewGuid(), Name = "Prescription:Read", Resource = "Prescription", Action = "Read", Description = "Ver recetas" },
-            new() { Id = Guid.NewGuid(), Name = "Prescription:Create", Resource = "Prescription", Action = "Create", Description = "Crear recetas" },
-            new() { Id = Guid.NewGuid(), Name = "VitalMetric:Read", Resource = "VitalMetric", Action = "Read", Description = "Ver métricas vitales" },
-            new() { Id = Guid.NewGuid(), Name = "VitalMetric:Create", Resource = "VitalMetric", Action = "Create", Description = "Registrar métricas" },
-            new() { Id = Guid.NewGuid(), Name = "Role:Read", Resource = "Role", Action = "Read", Description = "Ver roles" },
-            new() { Id = Guid.NewGuid(), Name = "Role:Create", Resource = "Role", Action = "Create", Description = "Crear roles" },
-            new() { Id = Guid.NewGuid(), Name = "Role:Update", Resource = "Role", Action = "Update", Description = "Actualizar roles" },
-            new() { Id = Guid.NewGuid(), Name = "User:Read", Resource = "User", Action = "Read", Description = "Ver usuarios" },
-            new() { Id = Guid.NewGuid(), Name = "User:ManageRoles", Resource = "User", Action = "ManageRoles", Description = "Asignar roles a usuarios" },
-            new() { Id = Guid.NewGuid(), Name = "Doctor:Approve", Resource = "Doctor", Action = "Approve", Description = "Aprobar médicos" }
-        };
-        _context.Permissions.AddRange(permissions);
+        await EnsurePermissionsAsync(cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var permDict = permissions.ToDictionary(p => $"{p.Resource}:{p.Action}");
+        var permissionByKey = await LoadPermissionDictionaryAsync(cancellationToken);
+        await EnsureStandardRolesAndSyncPermissionsAsync(permissionByKey, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 
-        if (await _context.Roles.AnyAsync(cancellationToken))
+    private async Task EnsurePermissionsAsync(CancellationToken cancellationToken)
+    {
+        var allExisting = await _context.Permissions.ToListAsync(cancellationToken);
+        var existingByName = allExisting
+            .GroupBy(p => p.Name, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Id).First(), StringComparer.Ordinal);
+
+        foreach (var spec in PermissionCatalog.All)
         {
-            var existingRoles = await _context.Roles.Include(r => r.Permissions).ToListAsync(cancellationToken);
-            foreach (var role in existingRoles)
+            if (existingByName.TryGetValue(spec.Name, out var existing))
             {
-                if (role.Permissions.Count > 0) continue;
-                AssignPermissionsToRole(role, role.Name, permDict);
+                if (existing.Description != spec.Description
+                    || existing.Resource != spec.Resource
+                    || existing.Action != spec.Action)
+                {
+                    existing.Description = spec.Description;
+                    existing.Resource = spec.Resource;
+                    existing.Action = spec.Action;
+                }
+
+                continue;
             }
-        }
-        else
-        {
-            var patientRole = new Role { Id = Guid.NewGuid(), Name = "Patient" };
-            var doctorRole = new Role { Id = Guid.NewGuid(), Name = "Doctor" };
-            var specialistRole = new Role { Id = Guid.NewGuid(), Name = "Specialist" };
-            var adminRole = new Role { Id = Guid.NewGuid(), Name = "Admin" };
-            var familyRole = new Role { Id = Guid.NewGuid(), Name = "FamilyMember" };
 
-            AssignPermissionsToRole(patientRole, "Patient", permDict);
-            AssignPermissionsToRole(doctorRole, "Doctor", permDict);
-            AssignPermissionsToRole(specialistRole, "Specialist", permDict);
-            AssignPermissionsToRole(adminRole, "Admin", permDict);
-            AssignPermissionsToRole(familyRole, "FamilyMember", permDict);
-
-            _context.Roles.AddRange(patientRole, doctorRole, specialistRole, adminRole, familyRole);
-        }
-
-        await _context.SaveChangesAsync(cancellationToken);
-    }
-
-    private static void AssignPermissionsToRole(Role role, string roleName, Dictionary<string, Permission> permDict)
-    {
-        var keys = GetPermissionKeysForRole(roleName);
-        foreach (var key in keys)
-        {
-            if (permDict.TryGetValue(key, out var perm))
-                role.Permissions.Add(perm);
+            _context.Permissions.Add(new Permission
+            {
+                Id = Guid.NewGuid(),
+                Name = spec.Name,
+                Resource = spec.Resource,
+                Action = spec.Action,
+                Description = spec.Description
+            });
         }
     }
 
-    private static List<string> GetPermissionKeysForRole(string roleName)
+    private async Task<Dictionary<string, Permission>> LoadPermissionDictionaryAsync(CancellationToken cancellationToken)
     {
-        return roleName switch
+        var list = await _context.Permissions.ToListAsync(cancellationToken);
+        return list
+            .GroupBy(p => PermissionKey(p.Resource, p.Action), StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Id).First(), StringComparer.Ordinal);
+    }
+
+    private static string PermissionKey(string resource, string action) => $"{resource}:{action}";
+
+    private async Task EnsureStandardRolesAndSyncPermissionsAsync(
+        Dictionary<string, Permission> permissionByKey,
+        CancellationToken cancellationToken)
+    {
+        var roles = await _context.Roles
+            .Include(r => r.Permissions)
+            .ToListAsync(cancellationToken);
+
+        var userCountByRole = await _context.Users
+            .AsNoTracking()
+            .GroupBy(u => u.RoleId)
+            .Select(g => new { g.Key, Cnt = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Cnt, cancellationToken);
+
+        static bool MatchesStandardName(string dbName, string canonicalName) =>
+            string.Equals(dbName.Trim(), canonicalName, StringComparison.OrdinalIgnoreCase);
+
+        foreach (var roleName in StandardRoleNames.All)
         {
-            "Patient" => new List<string>
+            var matching = roles.Where(r => MatchesStandardName(r.Name, roleName)).ToList();
+
+            Role role;
+            if (matching.Count > 1)
             {
-                "Auth:2FA:Manage", "Patient:ReadOwn", "Patient:UpdateOwn", "Appointment:Read", "ClinicalEncounter:Read",
-                "Prescription:Read", "VitalMetric:Read", "VitalMetric:Create"
-            },
-            "Doctor" => new List<string>
+                var keeper = matching
+                    .OrderByDescending(r => userCountByRole.GetValueOrDefault(r.Id))
+                    .ThenBy(r => r.Id)
+                    .First();
+
+                keeper.Name = roleName;
+
+                foreach (var dup in matching.Where(r => r.Id != keeper.Id))
+                {
+                    var affectedUsers = await _context.Users
+                        .Where(u => u.RoleId == dup.Id)
+                        .ToListAsync(cancellationToken);
+                    foreach (var u in affectedUsers)
+                        u.RoleId = keeper.Id;
+
+                    _context.Roles.Remove(dup);
+                    roles.Remove(dup);
+                }
+
+                role = keeper;
+            }
+            else if (matching.Count == 1)
             {
-                "Auth:2FA:Manage", "Patient:Read", "Patient:Create", "Appointment:Read", "Appointment:Create", "Appointment:Update",
-                "ClinicalEncounter:Read", "ClinicalEncounter:Create",
-                "Prescription:Read", "Prescription:Create", "VitalMetric:Read", "VitalMetric:Create"
-            },
-            "Specialist" => new List<string>
+                role = matching[0];
+                if (!string.Equals(role.Name, roleName, StringComparison.Ordinal))
+                    role.Name = roleName;
+            }
+            else
             {
-                "Auth:2FA:Manage", "Patient:Read", "Appointment:Read", "Appointment:Create", "Appointment:Update",
-                "ClinicalEncounter:Read", "ClinicalEncounter:Create",
-                "Prescription:Read", "Prescription:Create", "VitalMetric:Read"
-            },
-            "Admin" => new List<string>
-            {
-                "Auth:2FA:Manage", "Patient:Read", "Patient:Create", "Appointment:Read", "Appointment:Create", "Appointment:Update",
-                "ClinicalEncounter:Read", "ClinicalEncounter:Update",
-                "Prescription:Read", "Prescription:Create", "VitalMetric:Read", "VitalMetric:Create",
-                "Role:Read", "Role:Create", "Role:Update", "User:Read", "User:ManageRoles", "Doctor:Approve"
-            },
-            "FamilyMember" => new List<string>
-            {
-                "Auth:2FA:Manage", "Patient:ReadOwn", "Appointment:Read", "VitalMetric:Read"
-            },
-            _ => new List<string> { "Auth:2FA:Manage" }
+                role = new Role { Id = Guid.NewGuid(), Name = roleName };
+                _context.Roles.Add(role);
+                roles.Add(role);
+            }
+
+            SyncPermissionsForRole(role, roleName, permissionByKey);
+        }
+    }
+
+    private static void SyncPermissionsForRole(
+        Role role,
+        string roleName,
+        Dictionary<string, Permission> permissionByKey)
+    {
+        var expectedKeys = GetPermissionKeysForRole(roleName);
+        var expected = new List<Permission>();
+        foreach (var key in expectedKeys)
+        {
+            if (permissionByKey.TryGetValue(key, out var p))
+                expected.Add(p);
+        }
+
+        var toRemove = role.Permissions
+            .Where(current => expected.All(e => e.Id != current.Id))
+            .ToList();
+
+        foreach (var p in toRemove)
+            role.Permissions.Remove(p);
+
+        foreach (var p in expected)
+        {
+            if (role.Permissions.All(c => c.Id != p.Id))
+                role.Permissions.Add(p);
+        }
+    }
+
+    private static List<string> GetPermissionKeysForRole(string roleName) =>
+        roleName switch
+        {
+            "Patient" =>
+            [
+                PermissionKey("Auth", "2FA:Manage"),
+                PermissionKey("Patient", "ReadOwn"),
+                PermissionKey("Patient", "UpdateOwn"),
+                PermissionKey("Appointment", "Read"),
+                PermissionKey("ClinicalEncounter", "Read"),
+                PermissionKey("Prescription", "Read"),
+                PermissionKey("VitalMetric", "Read"),
+                PermissionKey("VitalMetric", "Create")
+            ],
+            "Doctor" =>
+            [
+                PermissionKey("Auth", "2FA:Manage"),
+                PermissionKey("Patient", "Read"),
+                PermissionKey("Patient", "Create"),
+                PermissionKey("Appointment", "Read"),
+                PermissionKey("Appointment", "Create"),
+                PermissionKey("Appointment", "Update"),
+                PermissionKey("ClinicalEncounter", "Read"),
+                PermissionKey("ClinicalEncounter", "Create"),
+                PermissionKey("Prescription", "Read"),
+                PermissionKey("Prescription", "Create"),
+                PermissionKey("VitalMetric", "Read"),
+                PermissionKey("VitalMetric", "Create")
+            ],
+            "Specialist" =>
+            [
+                PermissionKey("Auth", "2FA:Manage"),
+                PermissionKey("Patient", "Read"),
+                PermissionKey("Appointment", "Read"),
+                PermissionKey("Appointment", "Create"),
+                PermissionKey("Appointment", "Update"),
+                PermissionKey("ClinicalEncounter", "Read"),
+                PermissionKey("ClinicalEncounter", "Create"),
+                PermissionKey("Prescription", "Read"),
+                PermissionKey("Prescription", "Create"),
+                PermissionKey("VitalMetric", "Read")
+            ],
+            "Admin" =>
+            [
+                PermissionKey("Auth", "2FA:Manage"),
+                PermissionKey("Patient", "Read"),
+                PermissionKey("Patient", "Create"),
+                PermissionKey("Appointment", "Read"),
+                PermissionKey("Appointment", "Create"),
+                PermissionKey("Appointment", "Update"),
+                PermissionKey("ClinicalEncounter", "Read"),
+                PermissionKey("ClinicalEncounter", "Update"),
+                PermissionKey("Prescription", "Read"),
+                PermissionKey("Prescription", "Create"),
+                PermissionKey("VitalMetric", "Read"),
+                PermissionKey("VitalMetric", "Create"),
+                PermissionKey("Role", "Read"),
+                PermissionKey("Role", "Create"),
+                PermissionKey("Role", "Update"),
+                PermissionKey("User", "Read"),
+                PermissionKey("User", "ManageRoles"),
+                PermissionKey("Doctor", "Approve")
+            ],
+            "FamilyMember" =>
+            [
+                PermissionKey("Auth", "2FA:Manage"),
+                PermissionKey("Patient", "ReadOwn"),
+                PermissionKey("Appointment", "Read"),
+                PermissionKey("VitalMetric", "Read")
+            ],
+            _ => [PermissionKey("Auth", "2FA:Manage")]
         };
+
+    private static class StandardRoleNames
+    {
+        public static readonly string[] All =
+        [
+            "Patient",
+            "Doctor",
+            "Specialist",
+            "Admin",
+            "FamilyMember"
+        ];
     }
+
+    private static class PermissionCatalog
+    {
+        public static readonly PermissionSpec[] All =
+        [
+            new("Auth:2FA:Manage", "Auth", "2FA:Manage", "Habilitar/deshabilitar 2FA"),
+            new("Patient:ReadOwn", "Patient", "ReadOwn", "Ver propio perfil de paciente"),
+            new("Patient:UpdateOwn", "Patient", "UpdateOwn", "Actualizar propio perfil"),
+            new("Patient:Read", "Patient", "Read", "Ver pacientes (médico/admin)"),
+            new("Patient:Create", "Patient", "Create", "Registrar pacientes"),
+            new("Appointment:Read", "Appointment", "Read", "Ver citas"),
+            new("Appointment:Create", "Appointment", "Create", "Crear citas"),
+            new("Appointment:Update", "Appointment", "Update", "Actualizar citas"),
+            new("ClinicalEncounter:Read", "ClinicalEncounter", "Read", "Ver encuentros clínicos"),
+            new("ClinicalEncounter:Create", "ClinicalEncounter", "Create", "Crear encuentros"),
+            new("ClinicalEncounter:Update", "ClinicalEncounter", "Update", "Actualizar encuentros (solo administración)"),
+            new("Prescription:Read", "Prescription", "Read", "Ver recetas"),
+            new("Prescription:Create", "Prescription", "Create", "Crear recetas"),
+            new("VitalMetric:Read", "VitalMetric", "Read", "Ver métricas vitales"),
+            new("VitalMetric:Create", "VitalMetric", "Create", "Registrar métricas"),
+            new("Role:Read", "Role", "Read", "Ver roles"),
+            new("Role:Create", "Role", "Create", "Crear roles"),
+            new("Role:Update", "Role", "Update", "Actualizar roles"),
+            new("User:Read", "User", "Read", "Ver usuarios"),
+            new("User:ManageRoles", "User", "ManageRoles", "Asignar roles a usuarios"),
+            new("Doctor:Approve", "Doctor", "Approve", "Aprobar médicos")
+        ];
+    }
+
+    private readonly record struct PermissionSpec(
+        string Name,
+        string Resource,
+        string Action,
+        string Description);
 }
