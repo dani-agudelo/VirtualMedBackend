@@ -1,3 +1,5 @@
+using VirtualMed.Domain.Enums;
+
 namespace VirtualMed.Domain.Entities;
 
 public class ClinicalEncounter
@@ -5,6 +7,8 @@ public class ClinicalEncounter
     public Guid Id { get; set; }
     public Guid AppointmentId { get; set; }
     public Appointment Appointment { get; set; } = null!;
+
+    public EncounterType EncounterType { get; set; } = EncounterType.Consultation;
 
     public DateTime StartAt { get; set; }
     public DateTime? EndAt { get; set; }

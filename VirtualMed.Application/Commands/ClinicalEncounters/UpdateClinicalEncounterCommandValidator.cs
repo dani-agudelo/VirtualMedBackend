@@ -1,4 +1,5 @@
 using FluentValidation;
+using VirtualMed.Domain.Enums;
 
 namespace VirtualMed.Application.Commands.ClinicalEncounters;
 
@@ -9,6 +10,10 @@ public class UpdateClinicalEncounterCommandValidator : AbstractValidator<UpdateC
     public UpdateClinicalEncounterCommandValidator()
     {
         RuleFor(x => x.Id).NotEmpty();
+
+        RuleFor(x => x.EncounterType!.Value)
+            .IsInEnum()
+            .When(x => x.EncounterType.HasValue);
 
         RuleFor(x => x)
             .Must(HasAtLeastOneChange)
@@ -43,7 +48,8 @@ public class UpdateClinicalEncounterCommandValidator : AbstractValidator<UpdateC
     }
 
     private static bool HasAtLeastOneChange(UpdateClinicalEncounterCommand x) =>
-        x.StartAt.HasValue
+        x.EncounterType.HasValue
+        || x.StartAt.HasValue
         || x.EndAt.HasValue
         || x.ChiefComplaint is not null
         || x.CurrentCondition is not null

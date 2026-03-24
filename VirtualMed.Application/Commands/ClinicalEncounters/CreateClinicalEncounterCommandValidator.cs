@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Interfaces;
+using VirtualMed.Domain.Enums;
 
 namespace VirtualMed.Application.Commands.ClinicalEncounters;
 
@@ -10,6 +11,10 @@ public class CreateClinicalEncounterCommandValidator : AbstractValidator<CreateC
 
     public CreateClinicalEncounterCommandValidator(IApplicationDbContext context)
     {
+        RuleFor(x => x.EncounterType)
+            .IsInEnum()
+            .WithMessage("EncounterType no es válido.");
+
         RuleFor(x => x.AppointmentId)
             .NotEmpty().WithMessage("AppointmentId is required.")
             .MustAsync(async (appointmentId, ct) =>

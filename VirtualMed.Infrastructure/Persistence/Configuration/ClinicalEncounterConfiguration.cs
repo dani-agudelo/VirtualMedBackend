@@ -12,6 +12,11 @@ public class ClinicalEncounterConfiguration : IEntityTypeConfiguration<ClinicalE
 
         builder.HasKey(x => x.Id);
 
+        builder.Property(x => x.EncounterType)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .IsRequired();
+
         builder.Property(x => x.ChiefComplaint)
             .HasMaxLength(500)
             .IsRequired();

@@ -66,6 +66,9 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
         if (request.To.HasValue)
             query = query.Where(x => x.StartAt <= request.To.Value);
 
+        if (request.EncounterType.HasValue)
+            query = query.Where(x => x.EncounterType == request.EncounterType.Value);
+
         var data = await query
             .OrderByDescending(x => x.StartAt)
             .Select(x => new ClinicalEncounterListItemDto
@@ -74,6 +77,7 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
                 AppointmentId = x.AppointmentId,
                 PatientId = x.Appointment.PatientId,
                 DoctorId = x.Appointment.DoctorId,
+                EncounterType = x.EncounterType,
                 StartAt = x.StartAt,
                 EndAt = x.EndAt,
                 ChiefComplaint = x.ChiefComplaint,
@@ -84,6 +88,26 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
                         Icd10Code = d.Icd10Code,
                         Description = d.Description,
                         Type = d.Type
+                    })
+                    .ToList(),
+                Prescriptions = x.Prescriptions
+                    .Select(p => new PrescriptionDto
+                    {
+                        Id = p.Id,
+                        PrescriptionNumber = p.PrescriptionNumber,
+                        IssuedAt = p.IssuedAt,
+                        ValidUntil = p.ValidUntil,
+                        Medications = p.Medications
+                            .Select(pm => new PrescriptionMedicationDto
+                            {
+                                MedicationId = pm.MedicationId,
+                                MedicationName = pm.Medication.Name,
+                                Dosage = pm.Dosage,
+                                Frequency = pm.Frequency,
+                                DurationDays = pm.DurationDays,
+                                Instructions = pm.Instructions
+                            })
+                            .ToList()
                     })
                     .ToList()
             })

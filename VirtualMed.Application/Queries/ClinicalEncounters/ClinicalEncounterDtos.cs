@@ -8,10 +8,12 @@ public class ClinicalEncounterListItemDto
     public Guid AppointmentId { get; set; }
     public Guid PatientId { get; set; }
     public Guid DoctorId { get; set; }
+    public EncounterType EncounterType { get; set; }
     public DateTime StartAt { get; set; }
     public DateTime? EndAt { get; set; }
     public string ChiefComplaint { get; set; } = string.Empty;
     public IReadOnlyCollection<DiagnosisDto> Diagnoses { get; set; } = [];
+    public IReadOnlyCollection<PrescriptionDto> Prescriptions { get; set; } = [];
 }
 
 public class ClinicalEncounterDetailDto
@@ -30,6 +32,7 @@ public class ClinicalEncounterDetailDto
     public string? Notes { get; set; }
     public string? RecordingUrl { get; set; }
     public bool IsLocked { get; set; }
+    public EncounterType EncounterType { get; set; }
     public IReadOnlyCollection<DiagnosisDto> Diagnoses { get; set; } = [];
     public IReadOnlyCollection<PrescriptionDto> Prescriptions { get; set; } = [];
 }

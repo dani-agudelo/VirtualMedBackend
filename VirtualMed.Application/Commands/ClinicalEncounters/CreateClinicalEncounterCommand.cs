@@ -5,6 +5,7 @@ namespace VirtualMed.Application.Commands.ClinicalEncounters;
 
 public record CreateClinicalEncounterCommand(
     Guid AppointmentId,
+    EncounterType EncounterType,
     DateTime StartAt,
     DateTime? EndAt,
     string ChiefComplaint,

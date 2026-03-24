@@ -5,6 +5,7 @@ using VirtualMed.Api.Authorization;
 using VirtualMed.Api.Models.ClinicalEncounters;
 using VirtualMed.Application.Commands.ClinicalEncounters;
 using VirtualMed.Application.Queries.ClinicalEncounters;
+using VirtualMed.Domain.Enums;
 
 namespace VirtualMed.Api.Controllers;
 
@@ -33,9 +34,10 @@ public class ClinicalEncountersController : ControllerBase
     public async Task<IActionResult> GetPatientHistory(
         Guid patientId,
         [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to)
+        [FromQuery] DateTime? to,
+        [FromQuery] EncounterType? encounterType)
     {
-        var result = await _mediator.Send(new GetPatientHistoryQuery(patientId, from, to));
+        var result = await _mediator.Send(new GetPatientHistoryQuery(patientId, from, to, encounterType));
         return Ok(result);
     }
 
@@ -61,6 +63,7 @@ public class ClinicalEncountersController : ControllerBase
 
         await _mediator.Send(new UpdateClinicalEncounterCommand(
             id,
+            body.EncounterType,
             body.StartAt,
             body.EndAt,
             body.ChiefComplaint,

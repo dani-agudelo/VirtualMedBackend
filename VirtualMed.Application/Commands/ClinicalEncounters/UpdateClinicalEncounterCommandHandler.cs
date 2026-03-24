@@ -26,15 +26,70 @@ public class UpdateClinicalEncounterCommandHandler : IRequestHandler<UpdateClini
             ?? throw new UnauthorizedAccessException("Authenticated user not found.");
 
         var role = _currentUserService.Role ?? string.Empty;
-        if (!string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
-            throw new ForbiddenException("Solo un administrador puede actualizar encuentros clínicos.");
+        var isAdmin = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase);
+        var isDoctorLike = IsDoctorLikeRole(role);
+
+        if (!isAdmin && !isDoctorLike)
+            throw new ForbiddenException("No tiene permiso para actualizar encuentros clínicos.");
 
         var encounter = await _context.Set<ClinicalEncounter>()
+            .Include(e => e.Appointment)
             .Include(e => e.Diagnoses)
             .FirstOrDefaultAsync(e => e.Id == request.Id, cancellationToken);
 
         if (encounter is null)
             throw new NotFoundException("Encuentro clínico", request.Id);
+
+        if (isDoctorLike && !isAdmin)
+        {
+            var doctorId = await _context.Set<Doctor>()
+                .Where(x => x.UserId == _currentUserService.UserId)
+                .Select(x => (Guid?)x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (!doctorId.HasValue)
+                throw new ForbiddenException("Solo los usuarios con perfil médico pueden actualizar encuentros.");
+
+            if (encounter.Appointment.DoctorId != doctorId.Value)
+                throw new ForbiddenException("Solo el médico asignado a la cita puede editar este encuentro.");
+
+            if (encounter.IsLocked)
+                throw new ForbiddenException("El encuentro está bloqueado y no admite ediciones.");
+
+            var deadline = encounter.CreatedAt.AddHours(24);
+            if (DateTime.UtcNow > deadline)
+            {
+                encounter.IsLocked = true;
+                encounter.UpdatedAt = DateTime.UtcNow;
+                _context.Update(encounter);
+                await _context.SaveChangesAsync(cancellationToken);
+                throw new BusinessRuleException(
+                    "El plazo de edición de 24 horas ha expirado. El encuentro ha quedado bloqueado.");
+            }
+
+            ApplyFieldUpdates(_context, encounter, request, applyIsLockedFromRequest: false);
+        }
+        else
+        {
+            ApplyFieldUpdates(_context, encounter, request, applyIsLockedFromRequest: true);
+        }
+
+        if (encounter.EndAt.HasValue && encounter.EndAt.Value < encounter.StartAt)
+            throw new BusinessRuleException("EndAt no puede ser anterior a StartAt.");
+
+        encounter.UpdatedAt = DateTime.UtcNow;
+        _context.Update(encounter);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static void ApplyFieldUpdates(
+        IApplicationDbContext context,
+        ClinicalEncounter encounter,
+        UpdateClinicalEncounterCommand request,
+        bool applyIsLockedFromRequest)
+    {
+        if (request.EncounterType.HasValue)
+            encounter.EncounterType = request.EncounterType.Value;
 
         if (request.StartAt.HasValue)
             encounter.StartAt = request.StartAt.Value;
@@ -63,14 +118,16 @@ public class UpdateClinicalEncounterCommandHandler : IRequestHandler<UpdateClini
         if (request.RecordingUrl is not null)
             encounter.RecordingUrl = request.RecordingUrl;
 
-        if (request.IsLocked.HasValue)
+        if (applyIsLockedFromRequest && request.IsLocked.HasValue)
             encounter.IsLocked = request.IsLocked.Value;
 
         if (request.Diagnoses is not null)
         {
             foreach (var existing in encounter.Diagnoses.ToList())
-                _context.Remove(existing);
-            encounter.Diagnoses.Clear();
+            {
+                encounter.Diagnoses.Remove(existing);
+                context.Remove(existing);
+            }
 
             var now = DateTime.UtcNow;
             foreach (var d in request.Diagnoses)
@@ -87,12 +144,9 @@ public class UpdateClinicalEncounterCommandHandler : IRequestHandler<UpdateClini
                 });
             }
         }
-
-        if (encounter.EndAt.HasValue && encounter.EndAt.Value < encounter.StartAt)
-            throw new BusinessRuleException("EndAt no puede ser anterior a StartAt.");
-
-        encounter.UpdatedAt = DateTime.UtcNow;
-        _context.Update(encounter);
-        await _context.SaveChangesAsync(cancellationToken);
     }
+
+    private static bool IsDoctorLikeRole(string role) =>
+        string.Equals(role, "Doctor", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(role, "Specialist", StringComparison.OrdinalIgnoreCase);
 }

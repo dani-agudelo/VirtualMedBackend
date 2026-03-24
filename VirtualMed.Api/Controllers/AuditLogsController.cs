@@ -1,7 +1,7 @@
-using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VirtualMed.Api.Authorization;
 using VirtualMed.Application.Queries.AuditLogs;
 
 namespace VirtualMed.Api.Controllers;
@@ -18,13 +18,8 @@ public class AuditLogsController : ControllerBase
         _mediator = mediator;
     }
 
-    private bool IsAdmin()
-    {
-        var role = User.FindFirst("role")?.Value;
-        return string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase);
-    }
-
     [HttpGet]
+    [RequirePermission("AuditLog", "Read")]
     public async Task<IActionResult> GetAuditLogs(
         [FromQuery] string? tableName,
         [FromQuery] string? operation,
@@ -33,9 +28,6 @@ public class AuditLogsController : ControllerBase
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20)
     {
-        if (!IsAdmin())
-            return Forbid();
-
         var result = await _mediator.Send(new GetAuditLogsQuery(
             tableName,
             operation,
@@ -55,9 +47,6 @@ public class AuditLogsController : ControllerBase
         [FromQuery] DateTime? to,
         [FromQuery] int maxRows = 5000)
     {
-        if (!IsAdmin())
-            return Forbid();
-
         var csv = await _mediator.Send(new ExportAuditLogsQuery(
             tableName,
             operation,

@@ -180,6 +180,7 @@ public class RolePermissionSeeder
                 PermissionKey("Appointment", "Update"),
                 PermissionKey("ClinicalEncounter", "Read"),
                 PermissionKey("ClinicalEncounter", "Create"),
+                PermissionKey("ClinicalEncounter", "Update"),
                 PermissionKey("Prescription", "Read"),
                 PermissionKey("Prescription", "Create"),
                 PermissionKey("VitalMetric", "Read"),
@@ -194,6 +195,7 @@ public class RolePermissionSeeder
                 PermissionKey("Appointment", "Update"),
                 PermissionKey("ClinicalEncounter", "Read"),
                 PermissionKey("ClinicalEncounter", "Create"),
+                PermissionKey("ClinicalEncounter", "Update"),
                 PermissionKey("Prescription", "Read"),
                 PermissionKey("Prescription", "Create"),
                 PermissionKey("VitalMetric", "Read")
@@ -217,7 +219,9 @@ public class RolePermissionSeeder
                 PermissionKey("Role", "Update"),
                 PermissionKey("User", "Read"),
                 PermissionKey("User", "ManageRoles"),
-                PermissionKey("Doctor", "Approve")
+                PermissionKey("Doctor", "Approve"),
+                PermissionKey("AuditLog", "Read"),
+                PermissionKey("AuditLog", "Export")
             ],
             "FamilyMember" =>
             [
@@ -255,7 +259,9 @@ public class RolePermissionSeeder
             new("Appointment:Update", "Appointment", "Update", "Actualizar citas"),
             new("ClinicalEncounter:Read", "ClinicalEncounter", "Read", "Ver encuentros clínicos"),
             new("ClinicalEncounter:Create", "ClinicalEncounter", "Create", "Crear encuentros"),
-            new("ClinicalEncounter:Update", "ClinicalEncounter", "Update", "Actualizar encuentros (solo administración)"),
+            new("ClinicalEncounter:Update", "ClinicalEncounter", "Update", "Actualizar encuentros (admin: completo; médico: dentro de 24 h, sin bloquear)"),
+            new("AuditLog:Read", "AuditLog", "Read", "Ver registros de auditoría"),
+            new("AuditLog:Export", "AuditLog", "Export", "Exportar registros de auditoría"),
             new("Prescription:Read", "Prescription", "Read", "Ver recetas"),
             new("Prescription:Create", "Prescription", "Create", "Crear recetas"),
             new("VitalMetric:Read", "VitalMetric", "Read", "Ver métricas vitales"),

@@ -46,6 +46,7 @@ public class CreateClinicalEncounterCommandHandler : IRequestHandler<CreateClini
         {
             Id = Guid.NewGuid(),
             AppointmentId = request.AppointmentId,
+            EncounterType = request.EncounterType,
             StartAt = request.StartAt,
             EndAt = request.EndAt,
             ChiefComplaint = request.ChiefComplaint,

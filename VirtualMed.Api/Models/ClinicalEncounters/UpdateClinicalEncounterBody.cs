@@ -4,6 +4,7 @@ namespace VirtualMed.Api.Models.ClinicalEncounters;
 
 public class UpdateClinicalEncounterBody
 {
+    public EncounterType? EncounterType { get; set; }
     public DateTime? StartAt { get; set; }
     public DateTime? EndAt { get; set; }
     public string? ChiefComplaint { get; set; }

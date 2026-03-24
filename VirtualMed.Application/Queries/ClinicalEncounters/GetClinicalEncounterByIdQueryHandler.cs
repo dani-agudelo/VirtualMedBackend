@@ -87,6 +87,7 @@ public class GetClinicalEncounterByIdQueryHandler : IRequestHandler<GetClinicalE
             Notes = encounter.Notes,
             RecordingUrl = encounter.RecordingUrl,
             IsLocked = encounter.IsLocked,
+            EncounterType = encounter.EncounterType,
             Diagnoses = encounter.Diagnoses.Select(d => new DiagnosisDto
             {
                 Id = d.Id,
