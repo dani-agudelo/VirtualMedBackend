@@ -84,7 +84,9 @@ public class ListAppointmentsQueryHandler : IRequestHandler<ListAppointmentsQuer
             {
                 Id = a.Id,
                 PatientId = a.PatientId,
+                PatientFullName = a.Patient.User.FullName,
                 DoctorId = a.DoctorId,
+                DoctorFullName = a.Doctor.User.FullName,
                 ScheduledAt = a.ScheduledAt,
                 DurationMinutes = a.DurationMinutes,
                 Status = a.Status,

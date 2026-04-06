@@ -188,10 +188,16 @@ builder.Services.AddInMemoryRateLimiting();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+try
 {
-    var seeder = scope.ServiceProvider.GetRequiredService<RolePermissionSeeder>();
-    await seeder.SeedAsync();
+    using var scope = app.Services.CreateScope();
+    await scope.ServiceProvider.GetRequiredService<RolePermissionSeeder>().SeedAsync();
+}
+catch (Exception ex) when (ex is not OperationCanceledException)
+{
+    Log.Warning(ex,
+        "No se pudo ejecutar el seed de roles/permisos al iniciar (BD inaccesible o credenciales). " +
+        "La API continúa; ejecute migraciones/seed cuando la base de datos esté disponible.");
 }
 
 app.UseExceptionHandler(exceptionHandlerApp =>
