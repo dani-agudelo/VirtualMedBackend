@@ -17,6 +17,18 @@ public class PatientsController : ControllerBase
         _mediator = mediator;
     }
 
+    [HttpGet("search")]
+    [Authorize]
+    [RequirePermission("Patient", "Read")]
+    public async Task<IActionResult> Search(
+        [FromQuery] string? q,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var result = await _mediator.Send(new SearchPatientsQuery(q, page, pageSize));
+        return Ok(result);
+    }
+
     [HttpGet("{patientId:guid}/export/fhir")]
     [Authorize]
     [RequirePermission("ClinicalEncounter", "Read")]

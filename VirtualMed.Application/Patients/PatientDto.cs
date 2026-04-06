@@ -8,7 +8,7 @@ public class PatientDto
     public Guid UserId { get; set; }
     public IdentificationType? IdentificationType { get; set; }
     public string Document { get; set; } = null!;
-    public DateTime DateOfBirth { get; set; }
+    public DateOnly DateOfBirth { get; set; }
     public string Gender { get; set; } = null!;
     public string BloodType { get; set; } = string.Empty;
     public string? Allergies { get; set; }

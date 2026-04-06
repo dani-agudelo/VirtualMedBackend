@@ -6,7 +6,9 @@ public class AppointmentDto
 {
     public Guid Id { get; set; }
     public Guid PatientId { get; set; }
+    public string PatientFullName { get; set; } = string.Empty;
     public Guid DoctorId { get; set; }
+    public string DoctorFullName { get; set; } = string.Empty;
     public DateTime ScheduledAt { get; set; }
     public int DurationMinutes { get; set; }
     public AppointmentStatus Status { get; set; }

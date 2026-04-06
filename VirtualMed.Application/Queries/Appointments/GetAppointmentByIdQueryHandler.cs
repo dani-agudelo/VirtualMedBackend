@@ -25,6 +25,8 @@ public class GetAppointmentByIdQueryHandler : IRequestHandler<GetAppointmentById
 
         var appointment = await _context.Set<Appointment>()
             .AsNoTracking()
+            .Include(a => a.Patient).ThenInclude(p => p.User)
+            .Include(a => a.Doctor).ThenInclude(d => d.User)
             .Include(a => a.ClinicalEncounter)
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
@@ -78,7 +80,9 @@ public class GetAppointmentByIdQueryHandler : IRequestHandler<GetAppointmentById
         {
             Id = a.Id,
             PatientId = a.PatientId,
+            PatientFullName = a.Patient.User.FullName,
             DoctorId = a.DoctorId,
+            DoctorFullName = a.Doctor.User.FullName,
             ScheduledAt = a.ScheduledAt,
             DurationMinutes = a.DurationMinutes,
             Status = a.Status,
