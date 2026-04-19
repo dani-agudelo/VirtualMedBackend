@@ -29,15 +29,19 @@ public class ClinicalEncountersController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id }, new { id });
     }
 
-    [HttpGet("patient/{patientId:guid}")]
+    /// <summary>
+    /// Lista encuentros clínicos (filtros por query; paciente/médico resueltos desde el token).
+    /// </summary>
+    [HttpGet]
     [RequirePermission("ClinicalEncounter", "Read")]
-    public async Task<IActionResult> GetPatientHistory(
-        Guid patientId,
+    public async Task<IActionResult> List(
+        [FromQuery] Guid? patientId,
+        [FromQuery] Guid? doctorId,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
         [FromQuery] EncounterType? encounterType)
     {
-        var result = await _mediator.Send(new GetPatientHistoryQuery(patientId, from, to, encounterType));
+        var result = await _mediator.Send(new ListClinicalEncountersQuery(patientId, doctorId, from, to, encounterType));
         return Ok(result);
     }
 

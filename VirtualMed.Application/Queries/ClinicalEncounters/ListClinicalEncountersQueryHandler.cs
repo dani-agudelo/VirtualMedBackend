@@ -6,26 +6,34 @@ using VirtualMed.Domain.Entities;
 
 namespace VirtualMed.Application.Queries.ClinicalEncounters;
 
-public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQuery, IReadOnlyCollection<ClinicalEncounterListItemDto>>
+public class ListClinicalEncountersQueryHandler : IRequestHandler<ListClinicalEncountersQuery, IReadOnlyCollection<ClinicalEncounterListItemDto>>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
 
-    public GetPatientHistoryQueryHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public ListClinicalEncountersQueryHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
     {
         _context = context;
         _currentUserService = currentUserService;
     }
 
-    public async Task<IReadOnlyCollection<ClinicalEncounterListItemDto>> Handle(GetPatientHistoryQuery request, CancellationToken cancellationToken)
+    public async Task<IReadOnlyCollection<ClinicalEncounterListItemDto>> Handle(
+        ListClinicalEncountersQuery request,
+        CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId
                      ?? throw new UnauthorizedAccessException("Authenticated user not found.");
         var role = _currentUserService.Role ?? string.Empty;
 
+        IQueryable<ClinicalEncounter> query = _context.Set<ClinicalEncounter>()
+            .AsNoTracking();
+
         if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
         {
-            // Sin restricción adicional.
+            if (request.PatientId.HasValue)
+                query = query.Where(x => x.Appointment.PatientId == request.PatientId.Value);
+            if (request.DoctorId.HasValue)
+                query = query.Where(x => x.Appointment.DoctorId == request.DoctorId.Value);
         }
         else if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
         {
@@ -34,8 +42,16 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
                 .Select(x => (Guid?)x.Id)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (!selfPatientId.HasValue || selfPatientId.Value != request.PatientId)
-                throw new ForbiddenException("No tiene permiso para acceder al historial de este paciente.");
+            if (!selfPatientId.HasValue)
+                return Array.Empty<ClinicalEncounterListItemDto>();
+
+            if (request.PatientId.HasValue && request.PatientId.Value != selfPatientId.Value)
+                throw new ForbiddenException("Solo puede listar sus propios encuentros clínicos.");
+
+            query = query.Where(x => x.Appointment.PatientId == selfPatientId.Value);
+
+            if (request.DoctorId.HasValue)
+                query = query.Where(x => x.Appointment.DoctorId == request.DoctorId.Value);
         }
         else if (IsDoctorLikeRole(role))
         {
@@ -45,20 +61,32 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (!doctorId.HasValue)
-                throw new ForbiddenException("Solo los usuarios con perfil médico pueden acceder a este historial.");
+                throw new ForbiddenException("Solo los usuarios con perfil médico pueden listar encuentros clínicos.");
 
-            var hasAttendedPatient = await _context.Set<ClinicalEncounter>()
-                .AnyAsync(x => x.Appointment.PatientId == request.PatientId && x.Appointment.DoctorId == doctorId.Value, cancellationToken);
+            if (request.DoctorId.HasValue && request.DoctorId.Value != doctorId.Value)
+                throw new ForbiddenException("Solo puede listar sus propios encuentros clínicos.");
 
-            if (!hasAttendedPatient)
-                throw new ForbiddenException("Solo puede acceder al historial de pacientes que haya atendido.");
+            query = query.Where(x => x.Appointment.DoctorId == doctorId.Value);
+
+            if (request.PatientId.HasValue)
+            {
+                var hasAttendedPatient = await _context.Set<ClinicalEncounter>()
+                    .AnyAsync(
+                        x => x.Appointment.PatientId == request.PatientId.Value && x.Appointment.DoctorId == doctorId.Value,
+                        cancellationToken);
+
+                if (!hasAttendedPatient)
+                    throw new ForbiddenException("Solo puede acceder al historial de pacientes que haya atendido.");
+
+                query = query.Where(x => x.Appointment.PatientId == request.PatientId.Value);
+            }
+        }
+        else if (string.Equals(role, "FamilyMember", StringComparison.OrdinalIgnoreCase))
+        {
+            return Array.Empty<ClinicalEncounterListItemDto>();
         }
         else
-            throw new ForbiddenException("No tiene permiso para acceder al historial del paciente.");
-
-        var query = _context.Set<ClinicalEncounter>()
-            .AsNoTracking()
-            .Where(x => x.Appointment.PatientId == request.PatientId);
+            throw new ForbiddenException("No tiene permiso para listar encuentros clínicos.");
 
         if (request.From.HasValue)
             query = query.Where(x => x.StartAt >= request.From.Value);
@@ -120,4 +148,3 @@ public class GetPatientHistoryQueryHandler : IRequestHandler<GetPatientHistoryQu
         string.Equals(role, "Doctor", StringComparison.OrdinalIgnoreCase)
         || string.Equals(role, "Specialist", StringComparison.OrdinalIgnoreCase);
 }
-
