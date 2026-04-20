@@ -6,6 +6,7 @@ public class PatientDto
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
+    public string FullName { get; set; } = string.Empty;
     public IdentificationType? IdentificationType { get; set; }
     public string Document { get; set; } = null!;
     public DateOnly DateOfBirth { get; set; }

@@ -8,7 +8,9 @@ public class PatientProfile : Profile
 {
     public PatientProfile()
     {
-        CreateMap<Patient, PatientDto>().ReverseMap();
+        CreateMap<Patient, PatientDto>()
+            .ForMember(d => d.FullName, o => o.MapFrom(s => s.User.FullName))
+            .ReverseMap();
     }
 }
 
