@@ -1,3 +1,5 @@
+using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
@@ -7,6 +9,53 @@ namespace VirtualMed.Application.Patients;
 
 internal static class PatientClinicalHistoryExportDataLoader
 {
+    public static async Task<Guid> ResolveTargetPatientIdForExportAsync(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        Guid? patientIdFromRequest,
+        CancellationToken cancellationToken)
+    {
+        _ = currentUserService.UserId
+            ?? throw new UnauthorizedAccessException("Authenticated user not found.");
+        var role = currentUserService.Role ?? string.Empty;
+
+        if (string.Equals(role, "Patient", StringComparison.OrdinalIgnoreCase))
+        {
+            var selfPatientId = await context.Set<Patient>()
+                .Where(x => x.UserId == currentUserService.UserId)
+                .Select(x => (Guid?)x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (!selfPatientId.HasValue)
+                throw new NotFoundException("Paciente", "perfil");
+
+            if (!patientIdFromRequest.HasValue)
+                return selfPatientId.Value;
+
+            if (patientIdFromRequest.Value != selfPatientId.Value)
+                throw new ForbiddenException("No tiene permiso para acceder al historial de este paciente.");
+
+            return selfPatientId.Value;
+        }
+
+        if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
+            || IsDoctorLikeRole(role))
+        {
+            if (!patientIdFromRequest.HasValue)
+            {
+                throw new ValidationException([
+                    new ValidationFailure(
+                        "patientId",
+                        "El parámetro patientId es obligatorio para exportar el historial con este rol.")
+                ]);
+            }
+
+            return patientIdFromRequest.Value;
+        }
+
+        throw new ForbiddenException("No tiene permiso para acceder al historial del paciente.");
+    }
+
     public static async Task<(Patient Patient, List<ClinicalEncounter> Encounters)> LoadAuthorizedAsync(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,

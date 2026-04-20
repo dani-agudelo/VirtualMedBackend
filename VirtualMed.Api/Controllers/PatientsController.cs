@@ -29,24 +29,24 @@ public class PatientsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("{patientId:guid}/export/fhir")]
+    [HttpGet("export/fhir")]
     [Authorize]
     [RequirePermission("ClinicalEncounter", "Read")]
-    public async Task<IActionResult> ExportFhirBundle(Guid patientId)
+    public async Task<IActionResult> ExportFhirBundle([FromQuery] Guid? patientId)
     {
         var json = await _mediator.Send(new ExportPatientFhirBundleQuery(patientId));
-        var fileName = $"patient-{patientId}-history.fhir.json";
+        var fileName = $"patient-clinical-history-{DateTime.UtcNow:yyyyMMdd_HHmm}.fhir.json";
         var bytes = System.Text.Encoding.UTF8.GetBytes(json);
         return File(bytes, "application/fhir+json", fileName);
     }
 
-    [HttpGet("{patientId:guid}/export/history/pdf")]
+    [HttpGet("export/history/pdf")]
     [Authorize]
     [RequirePermission("ClinicalEncounter", "Read")]
-    public async Task<IActionResult> ExportClinicalHistoryPdf(Guid patientId)
+    public async Task<IActionResult> ExportClinicalHistoryPdf([FromQuery] Guid? patientId)
     {
         var pdf = await _mediator.Send(new ExportPatientClinicalHistoryPdfQuery(patientId));
-        var fileName = $"historial-clinico-{patientId:N}-{DateTime.UtcNow:yyyyMMdd}.pdf";
+        var fileName = $"historial-clinico-{DateTime.UtcNow:yyyyMMdd_HHmm}.pdf";
         return File(pdf, "application/pdf", fileName);
     }
 

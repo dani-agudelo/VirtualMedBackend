@@ -20,10 +20,16 @@ public class ExportPatientClinicalHistoryPdfQueryHandler : IRequestHandler<Expor
 
     public async Task<byte[]> Handle(ExportPatientClinicalHistoryPdfQuery request, CancellationToken cancellationToken)
     {
-        var (patient, encounters) = await PatientClinicalHistoryExportDataLoader.LoadAuthorizedAsync(
+        var patientId = await PatientClinicalHistoryExportDataLoader.ResolveTargetPatientIdForExportAsync(
             _context,
             _currentUserService,
             request.PatientId,
+            cancellationToken);
+
+        var (patient, encounters) = await PatientClinicalHistoryExportDataLoader.LoadAuthorizedAsync(
+            _context,
+            _currentUserService,
+            patientId,
             cancellationToken);
 
         return PatientClinicalHistoryPdfDocument.Generate(patient, encounters);
