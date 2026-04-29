@@ -62,7 +62,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             NotFoundException => (404, "NOT_FOUND", exception.Message),
             DuplicateEntityException => (409, "CONFLICT", exception.Message),
             AppInvalidOperationException => (409, "BUSINESS_ERROR", exception.Message),
-            BusinessRuleException => (409, "BUSINESS_ERROR", exception.Message),
+            BusinessRuleException bre => (409, bre.ErrorCode ?? "BUSINESS_ERROR", bre.Message),
             ExternalServiceException => (503, "EXTERNAL_SERVICE_ERROR", "Servicio externo no disponible temporalmente"),
             _ => (500, "INTERNAL_ERROR", "Ha ocurrido un error interno. Use el traceId para soporte.")
         };
