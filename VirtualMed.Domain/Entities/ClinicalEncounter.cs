@@ -13,6 +13,8 @@ public class ClinicalEncounter
     public DateTime StartAt { get; set; }
     public DateTime? EndAt { get; set; }
 
+    public string Status { get; set; } = "Scheduled";
+
     public string ChiefComplaint { get; set; } = null!;
     public string? CurrentCondition { get; set; }
     public string? PhysicalExam { get; set; }

@@ -4,6 +4,7 @@ using VirtualMed.Application.Common.Exceptions;
 using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
+using VirtualMed.Domain.Enums;
 
 namespace VirtualMed.Application.Commands.Appointments;
 
@@ -51,6 +52,24 @@ public class CreateAppointmentCommandHandler : IRequestHandler<CreateAppointment
             throw new ForbiddenException("No tiene permiso para crear citas.");
 
         var now = DateTime.UtcNow;
+
+        if (request.ScheduledAt < now.AddHours(12))
+            throw new BusinessRuleException("APPOINTMENT_MIN_ADVANCE_TIME", "La cita debe ser agendada con al menos 12 horas de antelación.");
+
+        var requestedStart = request.ScheduledAt;
+        var requestedEnd = request.ScheduledAt.AddMinutes(request.DurationMinutes);
+
+        var hasConflict = await _context.Set<Appointment>()
+            .AsNoTracking()
+            .Where(a => a.DoctorId == doctorEntityId
+                        && a.Status != AppointmentStatus.Cancelled
+                        && a.Status != AppointmentStatus.NoShow)
+            .AnyAsync(a => a.ScheduledAt < requestedEnd
+                           && a.ScheduledAt.AddMinutes(a.DurationMinutes) > requestedStart,
+                cancellationToken);
+
+        if (hasConflict)
+            throw new BusinessRuleException("DOCTOR_BUSY", "El doctor está ocupado en el horario seleccionado.");
 
         var appointment = new Appointment
         {

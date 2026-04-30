@@ -32,10 +32,20 @@ public class UpdateAppointmentCommandHandler : IRequestHandler<UpdateAppointment
         await EnsureCanModifyAppointmentAsync(appointment, userId, role, cancellationToken);
 
         if (request.Status.HasValue)
-            appointment.Status = request.Status.Value;
+        {
+            var cancellationWindow = TimeSpan.FromHours(24);
+            appointment.UpdateStatus(request.Status.Value, cancellationWindow);
+        }
 
         if (request.ScheduledAt.HasValue)
+        {
+            if (appointment.Status != Domain.Enums.AppointmentStatus.Scheduled)
+            {
+                throw new Exceptions.InvalidOperationException("Cannot reschedule an appointment that is not in 'Scheduled' status.");
+            }
+            // TODO: Add rescheduling window validation if needed
             appointment.ScheduledAt = request.ScheduledAt.Value;
+        }
 
         if (request.DurationMinutes.HasValue)
             appointment.DurationMinutes = request.DurationMinutes.Value;

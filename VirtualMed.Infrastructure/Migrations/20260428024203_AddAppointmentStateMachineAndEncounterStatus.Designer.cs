@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VirtualMed.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using VirtualMed.Infrastructure.Persistence;
 namespace VirtualMed.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260428024203_AddAppointmentStateMachineAndEncounterStatus")]
+    partial class AddAppointmentStateMachineAndEncounterStatus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -594,93 +597,6 @@ namespace VirtualMed.Infrastructure.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("VirtualMed.Domain.Entities.VideoChatMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
-                    b.Property<string>("MessageType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<Guid>("SenderId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("SentAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("VideoSessionId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SentAt");
-
-                    b.HasIndex("VideoSessionId");
-
-                    b.ToTable("video_chat_messages", (string)null);
-                });
-
-            modelBuilder.Entity("VirtualMed.Domain.Entities.VideoSession", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AppointmentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("EndReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime?>("EndedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RoomToken")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<Guid>("SessionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("StartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<DateTime>("TokenExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AppointmentId");
-
-                    b.HasIndex("SessionId")
-                        .IsUnique();
-
-                    b.HasIndex("TokenExpiresAt");
-
-                    b.ToTable("video_sessions", (string)null);
-                });
-
             modelBuilder.Entity("role_permissions", b =>
                 {
                     b.Property<Guid>("PermissionId")
@@ -838,28 +754,6 @@ namespace VirtualMed.Infrastructure.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("VirtualMed.Domain.Entities.VideoChatMessage", b =>
-                {
-                    b.HasOne("VirtualMed.Domain.Entities.VideoSession", "VideoSession")
-                        .WithMany("ChatMessages")
-                        .HasForeignKey("VideoSessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("VideoSession");
-                });
-
-            modelBuilder.Entity("VirtualMed.Domain.Entities.VideoSession", b =>
-                {
-                    b.HasOne("VirtualMed.Domain.Entities.Appointment", "Appointment")
-                        .WithMany("VideoSessions")
-                        .HasForeignKey("AppointmentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Appointment");
-                });
-
             modelBuilder.Entity("role_permissions", b =>
                 {
                     b.HasOne("VirtualMed.Domain.Entities.Permission", null)
@@ -878,8 +772,6 @@ namespace VirtualMed.Infrastructure.Migrations
             modelBuilder.Entity("VirtualMed.Domain.Entities.Appointment", b =>
                 {
                     b.Navigation("ClinicalEncounter");
-
-                    b.Navigation("VideoSessions");
                 });
 
             modelBuilder.Entity("VirtualMed.Domain.Entities.ClinicalEncounter", b =>
@@ -897,11 +789,6 @@ namespace VirtualMed.Infrastructure.Migrations
             modelBuilder.Entity("VirtualMed.Domain.Entities.Prescription", b =>
                 {
                     b.Navigation("Medications");
-                });
-
-            modelBuilder.Entity("VirtualMed.Domain.Entities.VideoSession", b =>
-                {
-                    b.Navigation("ChatMessages");
                 });
 #pragma warning restore 612, 618
         }
