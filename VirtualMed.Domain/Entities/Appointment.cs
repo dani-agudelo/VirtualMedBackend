@@ -20,5 +20,6 @@ public class Appointment
     public DateTime UpdatedAt { get; set; }
 
     public ClinicalEncounter? ClinicalEncounter { get; set; }
+    public ICollection<VideoSession> VideoSessions { get; set; } = new List<VideoSession>();
 }
 

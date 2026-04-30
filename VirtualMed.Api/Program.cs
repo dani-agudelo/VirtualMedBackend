@@ -21,6 +21,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using VirtualMed.Application.Configuration;
+using VirtualMed.Api.Hubs;
 using VirtualMed.Infrastructure.Configuration;
 using VirtualMed.Api.Authorization;
 using VirtualMed.Api.Services;
@@ -45,6 +46,7 @@ builder.Services.AddControllers()
             .Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSignalR();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -110,7 +112,10 @@ builder.Services.AddCors(options =>
 builder.Services.Configure<MinioSettings>(builder.Configuration.GetSection("Minio"));
 builder.Services.Configure<EncryptionSettings>(builder.Configuration.GetSection("Encryption"));
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.Configure<WebRtcSettings>(builder.Configuration.GetSection("WebRtc"));
+builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("Twilio"));
 builder.Services.AddScoped<JwtSettings>(sp => sp.GetRequiredService<IOptions<JwtSettings>>().Value);
+builder.Services.AddHttpClient();
 
 // JWT Authentication
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -121,6 +126,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.MapInboundClaims = false;
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrWhiteSpace(accessToken)
+                    && path.StartsWithSegments("/hubs/video-chat"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
@@ -158,6 +178,8 @@ builder.Services.AddScoped<IMinioService, MinioService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<ITotpService, TotpService>();
+builder.Services.AddScoped<IWebRtcIceService, TwilioWebRtcIceService>();
+builder.Services.AddScoped<IVideoSessionAuditService, VideoSessionAuditService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -225,6 +247,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<VideoChatHub>("/hubs/video-chat");
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
     Predicate = _ => true
