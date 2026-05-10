@@ -16,4 +16,5 @@ public class AppointmentDto
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public bool HasClinicalEncounter { get; set; }
+    public Guid? VideoSessionId { get; set; }
 }

@@ -20,6 +20,14 @@ public class VideoSessionsController : ControllerBase
         _mediator = mediator;
     }
 
+    [HttpGet("mine")]
+    [RequirePermission("VideoSession", "Read")]
+    public async Task<IActionResult> ListMine([FromQuery] bool includeEnded = false)
+    {
+        var result = await _mediator.Send(new ListMyVideoSessionsQuery(includeEnded));
+        return Ok(result);
+    }
+
     [HttpPost]
     [RequirePermission("VideoSession", "Create")]
     public async Task<IActionResult> Create([FromBody] CreateVideoSessionBody body)

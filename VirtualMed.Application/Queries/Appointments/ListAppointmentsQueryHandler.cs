@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
+using VirtualMed.Domain.Enums;
 
 namespace VirtualMed.Application.Queries.Appointments;
 
@@ -93,7 +94,12 @@ public class ListAppointmentsQueryHandler : IRequestHandler<ListAppointmentsQuer
                 Reason = a.Reason,
                 CreatedAt = a.CreatedAt,
                 UpdatedAt = a.UpdatedAt,
-                HasClinicalEncounter = a.ClinicalEncounter != null
+                HasClinicalEncounter = a.ClinicalEncounter != null,
+                VideoSessionId = a.VideoSessions
+                    .Where(v => v.Status != VideoSessionStatus.Ended)
+                    .OrderByDescending(v => v.CreatedAt)
+                    .Select(v => (Guid?)v.SessionId)
+                    .FirstOrDefault()
             })
             .ToListAsync(cancellationToken);
 

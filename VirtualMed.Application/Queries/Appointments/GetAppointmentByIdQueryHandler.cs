@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Domain.Entities;
+using VirtualMed.Domain.Enums;
 
 namespace VirtualMed.Application.Queries.Appointments;
 
@@ -28,6 +29,7 @@ public class GetAppointmentByIdQueryHandler : IRequestHandler<GetAppointmentById
             .Include(a => a.Patient).ThenInclude(p => p.User)
             .Include(a => a.Doctor).ThenInclude(d => d.User)
             .Include(a => a.ClinicalEncounter)
+            .Include(a => a.VideoSessions)
             .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken);
 
         if (appointment is null)
@@ -89,7 +91,12 @@ public class GetAppointmentByIdQueryHandler : IRequestHandler<GetAppointmentById
             Reason = a.Reason,
             CreatedAt = a.CreatedAt,
             UpdatedAt = a.UpdatedAt,
-            HasClinicalEncounter = a.ClinicalEncounter != null
+            HasClinicalEncounter = a.ClinicalEncounter != null,
+            VideoSessionId = a.VideoSessions
+                .Where(v => v.Status != VideoSessionStatus.Ended)
+                .OrderByDescending(v => v.CreatedAt)
+                .Select(v => (Guid?)v.SessionId)
+                .FirstOrDefault()
         };
 
     private static bool IsDoctorLikeRole(string role) =>
