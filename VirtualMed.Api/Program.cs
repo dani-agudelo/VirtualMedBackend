@@ -179,7 +179,6 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<ITotpService, TotpService>();
 builder.Services.AddScoped<IWebRtcIceService, TwilioWebRtcIceService>();
-builder.Services.AddScoped<IVideoSessionAuditService, VideoSessionAuditService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
