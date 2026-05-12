@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Interfaces;
-using VirtualMed.Application.Interfaces.Services;
 using VirtualMed.Application.VideoSessions;
 using VirtualMed.Domain.Entities;
 using VirtualMed.Domain.Enums;
@@ -14,16 +13,13 @@ public class VideoChatHub : Hub
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
-    private readonly IVideoSessionAuditService _auditService;
 
     public VideoChatHub(
         IApplicationDbContext context,
-        ICurrentUserService currentUserService,
-        IVideoSessionAuditService auditService)
+        ICurrentUserService currentUserService)
     {
         _context = context;
         _currentUserService = currentUserService;
-        _auditService = auditService;
     }
 
     [Authorize(Policy = "Permission:VideoChat:Join")]
@@ -42,12 +38,6 @@ public class VideoChatHub : Hub
             userId,
             connectionId = Context.ConnectionId
         }, cancellationToken: Context.ConnectionAborted);
-
-        await _auditService.LogEventAsync(
-            sessionId,
-            "join",
-            new { connectionId = Context.ConnectionId },
-            Context.ConnectionAborted);
     }
 
     [Authorize(Policy = "Permission:VideoChat:Join")]
@@ -65,11 +55,6 @@ public class VideoChatHub : Hub
             userId,
             connectionId = Context.ConnectionId
         }, cancellationToken: Context.ConnectionAborted);
-        await _auditService.LogEventAsync(
-            sessionId,
-            "leave",
-            new { connectionId = Context.ConnectionId },
-            Context.ConnectionAborted);
     }
 
     [Authorize(Policy = "Permission:VideoChat:Join")]
@@ -127,12 +112,6 @@ public class VideoChatHub : Hub
             sentAt = entity.SentAt,
             messageType = entity.MessageType.ToString()
         }, cancellationToken: Context.ConnectionAborted);
-
-        await _auditService.LogEventAsync(
-            sessionId,
-            "send_message",
-            new { messageType = entity.MessageType.ToString(), messageLength = entity.Message.Length },
-            Context.ConnectionAborted);
     }
 
     private async Task<VideoSession> LoadSessionAsync(Guid sessionId, CancellationToken cancellationToken)
@@ -165,11 +144,6 @@ public class VideoChatHub : Hub
                 userId,
                 connectionId = Context.ConnectionId
             }, cancellationToken: CancellationToken.None);
-            await _auditService.LogEventAsync(
-                sessionId,
-                "leave",
-                new { connectionId = Context.ConnectionId, reason = exception?.GetType().Name ?? "disconnect" },
-                CancellationToken.None);
         }
 
         await base.OnDisconnectedAsync(exception);

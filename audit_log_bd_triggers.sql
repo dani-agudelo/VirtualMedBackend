@@ -2,17 +2,19 @@
 -- audit_log_bd_triggers.sql  (PostgreSQL)
 -- =============================================================================
 -- Alcance: roles, permissions, role_permissions, appointments, clinical_encounters,
---          diagnoses, prescriptions, medications, prescription_medications
+--          diagnoses, prescriptions, medications, prescription_medications,
+--          video_sessions, video_chat_messages
 -- Escritura: triggers I/U/D que INSERTAN filas en audit_logs (OldData/NewData jsonb).
---
 --
 -- Tablas auditadas aquí:
 --   roles, permissions, role_permissions,
 --   appointments, clinical_encounters, diagnoses, prescriptions,
---   medications, prescription_medications
-
+--   medications, prescription_medications,
+--   video_sessions, video_chat_messages
+--
 -- Notas:
 --   - app.user_id: opcional; la app lo setea vía interceptor antes de SaveChanges.
+--   - video_sessions: en NewData/OldData se omite la columna RoomToken (secreto de sala).
 -- =============================================================================
 
 BEGIN;
@@ -579,6 +581,100 @@ CREATE TRIGGER trg_prescription_medications_audit_iud
 AFTER INSERT OR UPDATE OR DELETE ON prescription_medications
 FOR EACH ROW
 EXECUTE FUNCTION audit_prescription_medications_iud();
+
+-- =========================================================
+-- video_sessions: updated_at + audit (create/start/end/refresh vía fila)
+-- RowPk = SessionId (identificador público de la sala).
+-- =========================================================
+DROP TRIGGER IF EXISTS trg_video_sessions_set_updated_at ON video_sessions;
+CREATE TRIGGER trg_video_sessions_set_updated_at
+BEFORE UPDATE ON video_sessions
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at_generic();
+
+CREATE OR REPLACE FUNCTION audit_video_sessions_row_json(v video_sessions)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+AS $$
+    SELECT (to_jsonb(v) - 'CreatedAt' - 'UpdatedAt' - 'RoomToken')
+        || jsonb_build_object('roomToken', '[redacted]');
+$$;
+
+CREATE OR REPLACE FUNCTION audit_video_sessions_iud()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    old_json jsonb;
+    new_json jsonb;
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        new_json := audit_video_sessions_row_json(NEW);
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('video_sessions','I', NEW."SessionId"::text, NULL, new_json, audit_get_app_user_id());
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        old_json := audit_video_sessions_row_json(OLD);
+        new_json := audit_video_sessions_row_json(NEW);
+        IF old_json IS DISTINCT FROM new_json THEN
+            INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+            VALUES ('video_sessions','U', NEW."SessionId"::text, old_json, new_json, audit_get_app_user_id());
+        END IF;
+        RETURN NEW;
+    ELSE
+        old_json := audit_video_sessions_row_json(OLD);
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('video_sessions','D', OLD."SessionId"::text, old_json, NULL, audit_get_app_user_id());
+        RETURN OLD;
+    END IF;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_video_sessions_audit_iud ON video_sessions;
+CREATE TRIGGER trg_video_sessions_audit_iud
+AFTER INSERT OR UPDATE OR DELETE ON video_sessions
+FOR EACH ROW
+EXECUTE FUNCTION audit_video_sessions_iud();
+
+-- =========================================================
+-- video_chat_messages: audit (mensajes de chat persistidos)
+-- =========================================================
+CREATE OR REPLACE FUNCTION audit_video_chat_messages_iud()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    old_json jsonb;
+    new_json jsonb;
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        new_json := to_jsonb(NEW);
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('video_chat_messages','I', NEW."Id"::text, NULL, new_json, audit_get_app_user_id());
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        old_json := to_jsonb(OLD);
+        new_json := to_jsonb(NEW);
+        IF old_json IS DISTINCT FROM new_json THEN
+            INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+            VALUES ('video_chat_messages','U', NEW."Id"::text, old_json, new_json, audit_get_app_user_id());
+        END IF;
+        RETURN NEW;
+    ELSE
+        old_json := to_jsonb(OLD);
+        INSERT INTO audit_logs("TableName","Operation","RowPk","OldData","NewData","AppUserId")
+        VALUES ('video_chat_messages','D', OLD."Id"::text, old_json, NULL, audit_get_app_user_id());
+        RETURN OLD;
+    END IF;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_video_chat_messages_audit_iud ON video_chat_messages;
+CREATE TRIGGER trg_video_chat_messages_audit_iud
+AFTER INSERT OR UPDATE OR DELETE ON video_chat_messages
+FOR EACH ROW
+EXECUTE FUNCTION audit_video_chat_messages_iud();
 
 -- audit_logs updated_at (opcional; por ahora no se actualiza)
 DROP TRIGGER IF EXISTS trg_audit_logs_set_updated_at ON audit_logs;

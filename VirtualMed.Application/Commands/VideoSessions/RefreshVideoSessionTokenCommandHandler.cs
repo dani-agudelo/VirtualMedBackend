@@ -15,18 +15,15 @@ public class RefreshVideoSessionTokenCommandHandler : IRequestHandler<RefreshVid
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IWebRtcIceService _webRtcIceService;
-    private readonly IVideoSessionAuditService _auditService;
 
     public RefreshVideoSessionTokenCommandHandler(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
-        IWebRtcIceService webRtcIceService,
-        IVideoSessionAuditService auditService)
+        IWebRtcIceService webRtcIceService)
     {
         _context = context;
         _currentUserService = currentUserService;
         _webRtcIceService = webRtcIceService;
-        _auditService = auditService;
     }
 
     public async Task<IceCredentialsDto> Handle(RefreshVideoSessionTokenCommand request, CancellationToken cancellationToken)
@@ -53,12 +50,6 @@ public class RefreshVideoSessionTokenCommandHandler : IRequestHandler<RefreshVid
         await _context.SaveChangesAsync(cancellationToken);
 
         var iceServers = await _webRtcIceService.GenerateIceServersAsync(60 * 60, cancellationToken);
-
-        await _auditService.LogEventAsync(
-            session.SessionId,
-            "refresh",
-            new { session.TokenExpiresAt, IceServersCount = iceServers.Count },
-            cancellationToken);
 
         return new IceCredentialsDto
         {

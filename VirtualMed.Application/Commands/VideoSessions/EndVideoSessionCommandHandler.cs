@@ -2,7 +2,6 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Exceptions;
 using VirtualMed.Application.Interfaces;
-using VirtualMed.Application.Interfaces.Services;
 using VirtualMed.Application.VideoSessions;
 using VirtualMed.Domain.Entities;
 using VirtualMed.Domain.Enums;
@@ -13,16 +12,13 @@ public class EndVideoSessionCommandHandler : IRequestHandler<EndVideoSessionComm
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
-    private readonly IVideoSessionAuditService _auditService;
 
     public EndVideoSessionCommandHandler(
         IApplicationDbContext context,
-        ICurrentUserService currentUserService,
-        IVideoSessionAuditService auditService)
+        ICurrentUserService currentUserService)
     {
         _context = context;
         _currentUserService = currentUserService;
-        _auditService = auditService;
     }
 
     public async Task<VideoSessionDto> Handle(EndVideoSessionCommand request, CancellationToken cancellationToken)
@@ -53,12 +49,6 @@ public class EndVideoSessionCommandHandler : IRequestHandler<EndVideoSessionComm
 
         _context.Update(session);
         await _context.SaveChangesAsync(cancellationToken);
-
-        await _auditService.LogEventAsync(
-            session.SessionId,
-            "end",
-            new { session.EndedAt, session.EndReason, session.Status },
-            cancellationToken);
 
         return VideoSessionMapper.ToDto(session);
     }

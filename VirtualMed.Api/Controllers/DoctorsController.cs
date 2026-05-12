@@ -28,4 +28,38 @@ public class DoctorsController : ControllerBase
         var result = await _mediator.Send(new SearchDoctorsQuery(q, page, pageSize));
         return Ok(result);
     }
+
+    [HttpGet("me/availability")]
+    [RequirePermission("Appointment", "Create")]
+    public async Task<IActionResult> GetMyAvailability(
+        [FromQuery] DateTime fromUtc,
+        [FromQuery] DateTime toUtc,
+        [FromQuery] int slotStepMinutes = 15,
+        [FromQuery] int appointmentDurationMinutes = 30)
+    {
+        var result = await _mediator.Send(new GetMyDoctorAvailabilityQuery(
+            fromUtc,
+            toUtc,
+            slotStepMinutes,
+            appointmentDurationMinutes));
+        return Ok(result);
+    }
+
+    [HttpGet("{doctorId:guid}/availability")]
+    [RequirePermission("Appointment", "Create")]
+    public async Task<IActionResult> GetAvailability(
+        Guid doctorId,
+        [FromQuery] DateTime fromUtc,
+        [FromQuery] DateTime toUtc,
+        [FromQuery] int slotStepMinutes = 15,
+        [FromQuery] int appointmentDurationMinutes = 30)
+    {
+        var result = await _mediator.Send(new GetDoctorAvailabilityQuery(
+            doctorId,
+            fromUtc,
+            toUtc,
+            slotStepMinutes,
+            appointmentDurationMinutes));
+        return Ok(result);
+    }
 }
