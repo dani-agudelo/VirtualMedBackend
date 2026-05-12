@@ -1,7 +1,9 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using VirtualMed.Api.Authorization;
+using VirtualMed.Api.Hubs;
 using VirtualMed.Api.Models.VideoSessions;
 using VirtualMed.Application.Commands.VideoSessions;
 using VirtualMed.Application.Queries.VideoSessions;
@@ -14,10 +16,12 @@ namespace VirtualMed.Api.Controllers;
 public class VideoSessionsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IHubContext<VideoChatHub> _hubContext;
 
-    public VideoSessionsController(IMediator mediator)
+    public VideoSessionsController(IMediator mediator, IHubContext<VideoChatHub> hubContext)
     {
         _mediator = mediator;
+        _hubContext = hubContext;
     }
 
     [HttpGet("mine")]
@@ -57,6 +61,11 @@ public class VideoSessionsController : ControllerBase
     public async Task<IActionResult> End(Guid sessionId, [FromBody] EndVideoSessionBody body)
     {
         var result = await _mediator.Send(new EndVideoSessionCommand(sessionId, body.EndReason));
+        await _hubContext.Clients.Group(VideoChatHub.GetRoomName(sessionId)).SendAsync("callEnded", new
+        {
+            sessionId,
+            endReason = body.EndReason
+        });
         return Ok(result);
     }
 

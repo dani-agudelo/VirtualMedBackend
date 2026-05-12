@@ -34,7 +34,14 @@ public class VideoChatHub : Hub
         await VideoSessionAccessHelper.EnsureCanAccessSessionAsync(_context, userId, role, session, Context.ConnectionAborted);
 
         await Groups.AddToGroupAsync(Context.ConnectionId, GetRoom(sessionId), Context.ConnectionAborted);
+        Context.Items["videoSessionId"] = sessionId;
         await Clients.Caller.SendAsync("joinedRoom", new { sessionId }, cancellationToken: Context.ConnectionAborted);
+        await Clients.OthersInGroup(GetRoom(sessionId)).SendAsync("participantJoined", new
+        {
+            sessionId,
+            userId,
+            connectionId = Context.ConnectionId
+        }, cancellationToken: Context.ConnectionAborted);
 
         await _auditService.LogEventAsync(
             sessionId,
@@ -51,6 +58,13 @@ public class VideoChatHub : Hub
         await VideoSessionAccessHelper.EnsureCanAccessSessionAsync(_context, userId, role, session, Context.ConnectionAborted);
 
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, GetRoom(sessionId), Context.ConnectionAborted);
+        Context.Items.Remove("videoSessionId");
+        await Clients.Group(GetRoom(sessionId)).SendAsync("participantLeft", new
+        {
+            sessionId,
+            userId,
+            connectionId = Context.ConnectionId
+        }, cancellationToken: Context.ConnectionAborted);
         await _auditService.LogEventAsync(
             sessionId,
             "leave",
@@ -138,5 +152,30 @@ public class VideoChatHub : Hub
         await VideoSessionAccessHelper.EnsureCanAccessSessionAsync(_context, userId, role, session, Context.ConnectionAborted);
     }
 
-    private static string GetRoom(Guid sessionId) => $"video-session-{sessionId:N}";
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        if (Context.Items.TryGetValue("videoSessionId", out var sessionValue)
+            && sessionValue is Guid sessionId)
+        {
+            var (userId, _) = await VideoSessionAccessHelper.ResolveCurrentUserAsync(_currentUserService);
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, GetRoom(sessionId), CancellationToken.None);
+            await Clients.Group(GetRoom(sessionId)).SendAsync("participantLeft", new
+            {
+                sessionId,
+                userId,
+                connectionId = Context.ConnectionId
+            }, cancellationToken: CancellationToken.None);
+            await _auditService.LogEventAsync(
+                sessionId,
+                "leave",
+                new { connectionId = Context.ConnectionId, reason = exception?.GetType().Name ?? "disconnect" },
+                CancellationToken.None);
+        }
+
+        await base.OnDisconnectedAsync(exception);
+    }
+
+    public static string GetRoomName(Guid sessionId) => $"video-session-{sessionId:N}";
+
+    private static string GetRoom(Guid sessionId) => GetRoomName(sessionId);
 }

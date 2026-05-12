@@ -41,7 +41,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResult>
             throw new UnauthorizedAccessException("Credenciales inválidas.");
 
         if (user.Status != "Active")
-            throw new UnauthorizedAccessException("Credenciales inválidas.");
+            throw new UnauthorizedAccessException("Su cuenta está pendiente o inactiva.");
 
         if (user.Role.Name == "Doctor")
         {
