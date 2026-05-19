@@ -174,8 +174,15 @@ public class RolePermissionSeeder
                 PermissionKey("VideoChat", "Join"),
                 PermissionKey("VideoChat", "Send"),
                 PermissionKey("VideoChat", "Read"),
-                PermissionKey("VitalMetric", "Read"),
-                PermissionKey("VitalMetric", "Create")
+                PermissionKey("VitalSign", "Read"),
+                PermissionKey("VitalSign", "Create"),
+                PermissionKey("VitalSign", "BulkCreate"),
+                PermissionKey("AlertThreshold", "Read"),
+                PermissionKey("AlertThreshold", "Create"),
+                PermissionKey("AlertThreshold", "Update"),
+                PermissionKey("AlertThreshold", "Delete"),
+                PermissionKey("Alert", "Read"),
+                PermissionKey("Alert", "Update")
             ],
             "Doctor" =>
             [
@@ -198,8 +205,9 @@ public class RolePermissionSeeder
                 PermissionKey("VideoChat", "Join"),
                 PermissionKey("VideoChat", "Send"),
                 PermissionKey("VideoChat", "Read"),
-                PermissionKey("VitalMetric", "Read"),
-                PermissionKey("VitalMetric", "Create")
+                PermissionKey("VitalSign", "Read"),
+                PermissionKey("VitalSign", "Create"),
+                PermissionKey("Alert", "Read")
             ],
             "Specialist" =>
             [
@@ -221,7 +229,7 @@ public class RolePermissionSeeder
                 PermissionKey("VideoChat", "Join"),
                 PermissionKey("VideoChat", "Send"),
                 PermissionKey("VideoChat", "Read"),
-                PermissionKey("VitalMetric", "Read")
+                PermissionKey("VitalSign", "Read")
             ],
             "Admin" =>
             [
@@ -243,8 +251,15 @@ public class RolePermissionSeeder
                 PermissionKey("VideoChat", "Join"),
                 PermissionKey("VideoChat", "Send"),
                 PermissionKey("VideoChat", "Read"),
-                PermissionKey("VitalMetric", "Read"),
-                PermissionKey("VitalMetric", "Create"),
+                PermissionKey("VitalSign", "Read"),
+                PermissionKey("VitalSign", "Create"),
+                PermissionKey("VitalSign", "BulkCreate"),
+                PermissionKey("AlertThreshold", "Read"),
+                PermissionKey("AlertThreshold", "Create"),
+                PermissionKey("AlertThreshold", "Update"),
+                PermissionKey("AlertThreshold", "Delete"),
+                PermissionKey("Alert", "Read"),
+                PermissionKey("Alert", "Update"),
                 PermissionKey("Role", "Read"),
                 PermissionKey("Role", "Create"),
                 PermissionKey("Role", "Update"),
@@ -259,7 +274,8 @@ public class RolePermissionSeeder
                 PermissionKey("Auth", "2FA:Manage"),
                 PermissionKey("Patient", "ReadOwn"),
                 PermissionKey("Appointment", "Read"),
-                PermissionKey("VitalMetric", "Read")
+                PermissionKey("VitalSign", "Read"),
+                PermissionKey("Alert", "Read")
             ],
             _ => [PermissionKey("Auth", "2FA:Manage")]
         };
@@ -303,8 +319,15 @@ public class RolePermissionSeeder
             new("VideoChat:Join", "VideoChat", "Join", "Unirse al chat de videoconsulta"),
             new("VideoChat:Send", "VideoChat", "Send", "Enviar mensajes en chat de videoconsulta"),
             new("VideoChat:Read", "VideoChat", "Read", "Consultar historial de chat de videoconsulta"),
-            new("VitalMetric:Read", "VitalMetric", "Read", "Ver métricas vitales"),
-            new("VitalMetric:Create", "VitalMetric", "Create", "Registrar métricas"),
+            new("VitalSign:Read", "VitalSign", "Read", "Ver lecturas de signos vitales"),
+            new("VitalSign:Create", "VitalSign", "Create", "Registrar signos vitales (manual)"),
+            new("VitalSign:BulkCreate", "VitalSign", "BulkCreate", "Importar lote simulado de signos vitales"),
+            new("AlertThreshold:Read", "AlertThreshold", "Read", "Ver umbrales de alerta"),
+            new("AlertThreshold:Create", "AlertThreshold", "Create", "Crear umbrales de alerta"),
+            new("AlertThreshold:Update", "AlertThreshold", "Update", "Actualizar umbrales de alerta"),
+            new("AlertThreshold:Delete", "AlertThreshold", "Delete", "Eliminar umbrales de alerta"),
+            new("Alert:Read", "Alert", "Read", "Ver alertas de salud"),
+            new("Alert:Update", "Alert", "Update", "Actualizar alertas (marcar leída)"),
             new("Role:Read", "Role", "Read", "Ver roles"),
             new("Role:Create", "Role", "Create", "Crear roles"),
             new("Role:Update", "Role", "Update", "Actualizar roles"),

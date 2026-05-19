@@ -2,7 +2,11 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VirtualMed.Api.Authorization;
+using VirtualMed.Api.Models.VitalSigns;
+using VirtualMed.Application.Commands.VitalSigns;
 using VirtualMed.Application.Queries.Patients;
+using VirtualMed.Application.Queries.VitalSigns;
+using VirtualMed.Domain.Enums;
 
 namespace VirtualMed.Api.Controllers;
 
@@ -48,6 +52,111 @@ public class PatientsController : ControllerBase
         var pdf = await _mediator.Send(new ExportPatientClinicalHistoryPdfQuery(patientId));
         var fileName = $"historial-clinico-{DateTime.UtcNow:yyyyMMdd_HHmm}.pdf";
         return File(pdf, "application/pdf", fileName);
+    }
+
+    [HttpPost("me/vital-readings")]
+    [Authorize]
+    [RequirePermission("VitalSign", "Create")]
+    public async Task<IActionResult> RecordMyVitalReadings([FromBody] RecordVitalSignReadingsRequest body)
+    {
+        var result = await _mediator.Send(new RecordVitalSignReadingCommand(null, body.Readings));
+        return Ok(result);
+    }
+
+    [HttpPost("{patientId:guid}/vital-readings")]
+    [Authorize]
+    [RequirePermission("VitalSign", "Create")]
+    public async Task<IActionResult> RecordPatientVitalReadings(
+        Guid patientId,
+        [FromBody] RecordVitalSignReadingsRequest body)
+    {
+        var result = await _mediator.Send(new RecordVitalSignReadingCommand(patientId, body.Readings));
+        return Ok(result);
+    }
+
+    [HttpGet("me/vital-readings")]
+    [Authorize]
+    [RequirePermission("VitalSign", "Read")]
+    public async Task<IActionResult> ListMyVitalReadings(
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] VitalSignType[]? types,
+        [FromQuery] VitalReadingSource? source,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] bool includeSummary = false)
+    {
+        var result = await _mediator.Send(new ListVitalSignReadingsQuery(
+            null, fromUtc, toUtc, types, source, page, pageSize, includeSummary));
+        return Ok(result);
+    }
+
+    [HttpGet("{patientId:guid}/vital-readings")]
+    [Authorize]
+    [RequirePermission("VitalSign", "Read")]
+    public async Task<IActionResult> ListPatientVitalReadings(
+        Guid patientId,
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] VitalSignType[]? types,
+        [FromQuery] VitalReadingSource? source,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] bool includeSummary = false)
+    {
+        var result = await _mediator.Send(new ListVitalSignReadingsQuery(
+            patientId, fromUtc, toUtc, types, source, page, pageSize, includeSummary));
+        return Ok(result);
+    }
+
+    [HttpGet("me/alert-thresholds")]
+    [Authorize]
+    [RequirePermission("AlertThreshold", "Read")]
+    public async Task<IActionResult> ListMyAlertThresholds()
+    {
+        var result = await _mediator.Send(new ListAlertThresholdsQuery(null));
+        return Ok(result);
+    }
+
+    [HttpPost("me/alert-thresholds")]
+    [Authorize]
+    [RequirePermission("AlertThreshold", "Create")]
+    public async Task<IActionResult> CreateMyAlertThreshold([FromBody] SetAlertThresholdRequest body)
+    {
+        var id = await _mediator.Send(new SetAlertThresholdCommand(
+            null, null, body.VitalSignType, body.MinValue, body.MaxValue, body.IsActive, body.AlertLevel));
+        return CreatedAtAction(nameof(ListMyAlertThresholds), new { id });
+    }
+
+    [HttpPut("me/alert-thresholds/{id:guid}")]
+    [Authorize]
+    [RequirePermission("AlertThreshold", "Update")]
+    public async Task<IActionResult> UpdateMyAlertThreshold(Guid id, [FromBody] SetAlertThresholdRequest body)
+    {
+        var thresholdId = await _mediator.Send(new SetAlertThresholdCommand(
+            null, id, body.VitalSignType, body.MinValue, body.MaxValue, body.IsActive, body.AlertLevel));
+        return Ok(new { id = thresholdId });
+    }
+
+    [HttpDelete("me/alert-thresholds/{id:guid}")]
+    [Authorize]
+    [RequirePermission("AlertThreshold", "Delete")]
+    public async Task<IActionResult> DeleteMyAlertThreshold(Guid id)
+    {
+        await _mediator.Send(new DeleteAlertThresholdCommand(id, null));
+        return NoContent();
+    }
+
+    [HttpGet("me/alerts")]
+    [Authorize]
+    [RequirePermission("Alert", "Read")]
+    public async Task<IActionResult> ListMyAlerts(
+        [FromQuery] bool? unreadOnly,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
+    {
+        var result = await _mediator.Send(new ListHealthAlertsQuery(null, unreadOnly, page, pageSize));
+        return Ok(result);
     }
 
     [HttpGet("{id:guid}")]

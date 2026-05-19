@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Application.Interfaces.Services;
+using AlertEvaluationService = VirtualMed.Infrastructure.Services.AlertEvaluationService;
 using VirtualMed.Api.Swagger;
 using VirtualMed.Infrastructure.Persistence;
 using VirtualMed.Infrastructure.Repositories;
@@ -182,6 +183,7 @@ builder.Services.AddScoped<IWebRtcIceService, TwilioWebRtcIceService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddScoped<AuditUserIdSaveChangesInterceptor>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");

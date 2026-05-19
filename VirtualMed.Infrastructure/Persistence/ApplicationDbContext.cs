@@ -27,6 +27,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<PrescriptionMedication> PrescriptionMedications => Set<PrescriptionMedication>();
     public DbSet<VideoSession> VideoSessions => Set<VideoSession>();
     public DbSet<VideoChatMessage> VideoChatMessages => Set<VideoChatMessage>();
+    public DbSet<VitalSignReading> VitalSignReadings => Set<VitalSignReading>();
+    public DbSet<AlertThreshold> AlertThresholds => Set<AlertThreshold>();
+    public DbSet<HealthAlert> HealthAlerts => Set<HealthAlert>();
 
     IQueryable<T> IApplicationDbContext.Set<T>() => Set<T>();
 
