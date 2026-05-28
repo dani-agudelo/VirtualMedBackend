@@ -182,7 +182,9 @@ public class RolePermissionSeeder
                 PermissionKey("AlertThreshold", "Update"),
                 PermissionKey("AlertThreshold", "Delete"),
                 PermissionKey("Alert", "Read"),
-                PermissionKey("Alert", "Update")
+                PermissionKey("Alert", "Update"),
+                PermissionKey("RiskScore", "Read"),
+                PermissionKey("RiskScore", "Create")
             ],
             "Doctor" =>
             [
@@ -207,7 +209,9 @@ public class RolePermissionSeeder
                 PermissionKey("VideoChat", "Read"),
                 PermissionKey("VitalSign", "Read"),
                 PermissionKey("VitalSign", "Create"),
-                PermissionKey("Alert", "Read")
+                PermissionKey("Alert", "Read"),
+                PermissionKey("RiskScore", "Read"),
+                PermissionKey("RiskScore", "Create")
             ],
             "Specialist" =>
             [
@@ -229,7 +233,8 @@ public class RolePermissionSeeder
                 PermissionKey("VideoChat", "Join"),
                 PermissionKey("VideoChat", "Send"),
                 PermissionKey("VideoChat", "Read"),
-                PermissionKey("VitalSign", "Read")
+                PermissionKey("VitalSign", "Read"),
+                PermissionKey("RiskScore", "Read")
             ],
             "Admin" =>
             [
@@ -260,6 +265,8 @@ public class RolePermissionSeeder
                 PermissionKey("AlertThreshold", "Delete"),
                 PermissionKey("Alert", "Read"),
                 PermissionKey("Alert", "Update"),
+                PermissionKey("RiskScore", "Read"),
+                PermissionKey("RiskScore", "Create"),
                 PermissionKey("Role", "Read"),
                 PermissionKey("Role", "Create"),
                 PermissionKey("Role", "Update"),
@@ -275,7 +282,8 @@ public class RolePermissionSeeder
                 PermissionKey("Patient", "ReadOwn"),
                 PermissionKey("Appointment", "Read"),
                 PermissionKey("VitalSign", "Read"),
-                PermissionKey("Alert", "Read")
+                PermissionKey("Alert", "Read"),
+                PermissionKey("RiskScore", "Read")
             ],
             _ => [PermissionKey("Auth", "2FA:Manage")]
         };
@@ -328,6 +336,8 @@ public class RolePermissionSeeder
             new("AlertThreshold:Delete", "AlertThreshold", "Delete", "Eliminar umbrales de alerta"),
             new("Alert:Read", "Alert", "Read", "Ver alertas de salud"),
             new("Alert:Update", "Alert", "Update", "Actualizar alertas (marcar leída)"),
+            new("RiskScore:Read", "RiskScore", "Read", "Ver historial de riesgo cardiovascular"),
+            new("RiskScore:Create", "RiskScore", "Create", "Calcular riesgo cardiovascular"),
             new("Role:Read", "Role", "Read", "Ver roles"),
             new("Role:Create", "Role", "Create", "Crear roles"),
             new("Role:Update", "Role", "Update", "Actualizar roles"),

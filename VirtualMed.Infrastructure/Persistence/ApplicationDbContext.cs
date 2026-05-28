@@ -30,6 +30,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<VitalSignReading> VitalSignReadings => Set<VitalSignReading>();
     public DbSet<AlertThreshold> AlertThresholds => Set<AlertThreshold>();
     public DbSet<HealthAlert> HealthAlerts => Set<HealthAlert>();
+    public DbSet<RiskScore> RiskScores => Set<RiskScore>();
 
     IQueryable<T> IApplicationDbContext.Set<T>() => Set<T>();
 

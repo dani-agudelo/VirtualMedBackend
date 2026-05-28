@@ -22,6 +22,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using VirtualMed.Application.Configuration;
+using VirtualMed.Application.RiskScores;
 using VirtualMed.Api.Hubs;
 using VirtualMed.Infrastructure.Configuration;
 using VirtualMed.Api.Authorization;
@@ -115,6 +116,7 @@ builder.Services.Configure<EncryptionSettings>(builder.Configuration.GetSection(
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<WebRtcSettings>(builder.Configuration.GetSection("WebRtc"));
 builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("Twilio"));
+builder.Services.Configure<RiskPredictionSettings>(builder.Configuration.GetSection("RiskPrediction"));
 builder.Services.AddScoped<JwtSettings>(sp => sp.GetRequiredService<IOptions<JwtSettings>>().Value);
 builder.Services.AddHttpClient();
 
@@ -184,6 +186,8 @@ builder.Services.AddScoped<IWebRtcIceService, TwilioWebRtcIceService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
+builder.Services.AddScoped<ICardiovascularRiskFeatureAssembler, CardiovascularRiskFeatureAssembler>();
+builder.Services.AddHttpClient<IRiskPredictionClient, RiskPredictionClient>();
 builder.Services.AddScoped<AuditUserIdSaveChangesInterceptor>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");

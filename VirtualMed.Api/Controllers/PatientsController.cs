@@ -5,7 +5,10 @@ using VirtualMed.Api.Authorization;
 using VirtualMed.Api.Models.VitalSigns;
 using VirtualMed.Application.Commands.VitalSigns;
 using VirtualMed.Application.Queries.Patients;
+using VirtualMed.Application.Commands.RiskScores;
+using VirtualMed.Application.Queries.RiskScores;
 using VirtualMed.Application.Queries.VitalSigns;
+using VirtualMed.Api.Models.RiskScores;
 using VirtualMed.Domain.Enums;
 
 namespace VirtualMed.Api.Controllers;
@@ -156,6 +159,54 @@ public class PatientsController : ControllerBase
         [FromQuery] int pageSize = 50)
     {
         var result = await _mediator.Send(new ListHealthAlertsQuery(null, unreadOnly, page, pageSize));
+        return Ok(result);
+    }
+
+    [HttpPost("me/risk-scores/calculate")]
+    [Authorize]
+    [RequirePermission("RiskScore", "Create")]
+    public async Task<IActionResult> CalculateMyCardiovascularRisk(
+        [FromBody] CalculateCardiovascularRiskRequest? body)
+    {
+        var result = await _mediator.Send(new CalculateCardiovascularRiskScoreCommand(
+            null,
+            body?.Overrides));
+        return Ok(result);
+    }
+
+    [HttpPost("{patientId:guid}/risk-scores/calculate")]
+    [Authorize]
+    [RequirePermission("RiskScore", "Create")]
+    public async Task<IActionResult> CalculatePatientCardiovascularRisk(
+        Guid patientId,
+        [FromBody] CalculateCardiovascularRiskRequest? body)
+    {
+        var result = await _mediator.Send(new CalculateCardiovascularRiskScoreCommand(
+            patientId,
+            body?.Overrides));
+        return Ok(result);
+    }
+
+    [HttpGet("me/risk-scores")]
+    [Authorize]
+    [RequirePermission("RiskScore", "Read")]
+    public async Task<IActionResult> ListMyRiskScores(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var result = await _mediator.Send(new ListRiskScoresQuery(null, page, pageSize));
+        return Ok(result);
+    }
+
+    [HttpGet("{patientId:guid}/risk-scores")]
+    [Authorize]
+    [RequirePermission("RiskScore", "Read")]
+    public async Task<IActionResult> ListPatientRiskScores(
+        Guid patientId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var result = await _mediator.Send(new ListRiskScoresQuery(patientId, page, pageSize));
         return Ok(result);
     }
 
