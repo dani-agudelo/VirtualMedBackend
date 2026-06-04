@@ -1,11 +1,9 @@
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Security.Claims;
-using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
 
 namespace VirtualMed.Infrastructure.Persistence.Interceptors;
 
@@ -16,8 +14,7 @@ public sealed class AuditUserIdSaveChangesInterceptor : SaveChangesInterceptor
 
     private sealed class State
     {
-        public IDbContextTransaction? Transaction { get; set; }
-        public bool StartedHere { get; set; }
+        public bool SessionAuditContextSet { get; set; }
     }
 
     private readonly ConditionalWeakTable<DbContext, State> _states = new();
@@ -42,6 +39,16 @@ public sealed class AuditUserIdSaveChangesInterceptor : SaveChangesInterceptor
         return null;
     }
 
+    private State GetOrCreateState(DbContext context)
+    {
+        if (_states.TryGetValue(context, out var state))
+            return state;
+
+        state = new State();
+        _states.Add(context, state);
+        return state;
+    }
+
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
@@ -56,46 +63,22 @@ public sealed class AuditUserIdSaveChangesInterceptor : SaveChangesInterceptor
             return await base.SavingChangesAsync(eventData, result, cancellationToken);
 
         var db = context.Database;
+        var useLocalConfig = db.CurrentTransaction != null;
 
-        if (db.CurrentTransaction == null)
+        try
         {
-            var tx = await db.BeginTransactionAsync(cancellationToken);
-            var state = _states.TryGetValue(context, out var existing)
-                ? existing
-                : new State();
-
-            if (!_states.TryGetValue(context, out existing))
-                _states.Add(context, state);
-
-            state.Transaction = tx;
-            state.StartedHere = true;
-
-            try
-            {
-                await db.ExecuteSqlRawAsync(
-                    "SELECT set_config('app.user_id', {0}, true);",
-                    new object?[] { appUserId },
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Failed to set app.user_id in PostgreSQL (audit context).");
-            }
+            await db.ExecuteSqlRawAsync(
+                "SELECT set_config('app.user_id', {0}, {1});",
+                new object[] { appUserId, useLocalConfig },
+                cancellationToken);
         }
-        else
+        catch (Exception ex)
         {
-            try
-            {
-                await db.ExecuteSqlRawAsync(
-                    "SELECT set_config('app.user_id', {0}, true);",
-                    new object?[] { appUserId },
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Failed to set app.user_id in PostgreSQL (audit context).");
-            }
+            _logger?.LogWarning(ex, "Failed to set app.user_id in PostgreSQL (audit context).");
         }
+
+        if (!useLocalConfig)
+            GetOrCreateState(context).SessionAuditContextSet = true;
 
         return await base.SavingChangesAsync(eventData, result, cancellationToken);
     }
@@ -105,25 +88,40 @@ public sealed class AuditUserIdSaveChangesInterceptor : SaveChangesInterceptor
         int result,
         CancellationToken cancellationToken = default)
     {
-        var context = eventData.Context;
-        if (context == null)
-            return result;
+        await ClearSessionAuditContextAsync(eventData.Context, cancellationToken);
+        return await base.SavedChangesAsync(eventData, result, cancellationToken);
+    }
 
-        if (_states.TryGetValue(context, out var state) && state.StartedHere && state.Transaction != null)
+    public override async Task SaveChangesFailedAsync(
+        DbContextErrorEventData eventData,
+        CancellationToken cancellationToken = default)
+    {
+        await ClearSessionAuditContextAsync(eventData.Context, cancellationToken);
+        await base.SaveChangesFailedAsync(eventData, cancellationToken);
+    }
+
+    private async Task ClearSessionAuditContextAsync(DbContext? context, CancellationToken cancellationToken)
+    {
+        if (context is null)
+            return;
+
+        if (!_states.TryGetValue(context, out var state) || !state.SessionAuditContextSet)
+            return;
+
+        try
         {
-            try
-            {
-                await state.Transaction.CommitAsync(cancellationToken);
-            }
-            finally
-            {
-                await state.Transaction.DisposeAsync();
-                state.Transaction = null;
-                state.StartedHere = false;
-            }
+            await context.Database.ExecuteSqlRawAsync(
+                "SELECT set_config('app.user_id', {0}, false);",
+                new object[] { string.Empty },
+                cancellationToken);
         }
-
-        return result;
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to clear app.user_id in PostgreSQL (audit context).");
+        }
+        finally
+        {
+            state.SessionAuditContextSet = false;
+        }
     }
 }
-

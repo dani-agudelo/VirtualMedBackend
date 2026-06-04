@@ -32,6 +32,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<HealthAlert> HealthAlerts => Set<HealthAlert>();
     public DbSet<RiskScore> RiskScores => Set<RiskScore>();
     public DbSet<UserEmailToken> UserEmailTokens => Set<UserEmailToken>();
+    public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
     IQueryable<T> IApplicationDbContext.Set<T>() => Set<T>();
 

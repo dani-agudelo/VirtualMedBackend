@@ -184,7 +184,9 @@ public class RolePermissionSeeder
                 PermissionKey("Alert", "Read"),
                 PermissionKey("Alert", "Update"),
                 PermissionKey("RiskScore", "Read"),
-                PermissionKey("RiskScore", "Create")
+                PermissionKey("RiskScore", "Create"),
+                PermissionKey("Chatbot", "Read"),
+                PermissionKey("Chatbot", "Send")
             ],
             "Doctor" =>
             [
@@ -338,6 +340,8 @@ public class RolePermissionSeeder
             new("Alert:Update", "Alert", "Update", "Actualizar alertas (marcar leída)"),
             new("RiskScore:Read", "RiskScore", "Read", "Ver historial de riesgo cardiovascular"),
             new("RiskScore:Create", "RiskScore", "Create", "Calcular riesgo cardiovascular"),
+            new("Chatbot:Read", "Chatbot", "Read", "Ver conversación con asistente clínico"),
+            new("Chatbot:Send", "Chatbot", "Send", "Enviar mensajes al asistente clínico"),
             new("Role:Read", "Role", "Read", "Ver roles"),
             new("Role:Create", "Role", "Create", "Crear roles"),
             new("Role:Update", "Role", "Update", "Actualizar roles"),

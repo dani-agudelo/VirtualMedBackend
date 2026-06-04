@@ -117,6 +117,7 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"))
 builder.Services.Configure<WebRtcSettings>(builder.Configuration.GetSection("WebRtc"));
 builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("Twilio"));
 builder.Services.Configure<RiskPredictionSettings>(builder.Configuration.GetSection("RiskPrediction"));
+builder.Services.Configure<ChatbotSettings>(builder.Configuration.GetSection("Chatbot"));
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<JwtSettings>(sp => sp.GetRequiredService<IOptions<JwtSettings>>().Value);
 builder.Services.AddHttpClient();
@@ -191,6 +192,7 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddScoped<ICardiovascularRiskFeatureAssembler, CardiovascularRiskFeatureAssembler>();
 builder.Services.AddHttpClient<IRiskPredictionClient, RiskPredictionClient>();
+builder.Services.AddHttpClient<IChatbotClient, ChatbotClient>();
 builder.Services.AddScoped<AuditUserIdSaveChangesInterceptor>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");

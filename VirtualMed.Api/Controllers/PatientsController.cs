@@ -8,7 +8,10 @@ using VirtualMed.Application.Queries.Patients;
 using VirtualMed.Application.Commands.RiskScores;
 using VirtualMed.Application.Queries.RiskScores;
 using VirtualMed.Application.Queries.VitalSigns;
+using VirtualMed.Application.Commands.Chatbot;
+using VirtualMed.Application.Queries.Chatbot;
 using VirtualMed.Api.Models.RiskScores;
+using VirtualMed.Api.Models.Chatbot;
 using VirtualMed.Domain.Enums;
 
 namespace VirtualMed.Api.Controllers;
@@ -207,6 +210,24 @@ public class PatientsController : ControllerBase
         [FromQuery] int pageSize = 20)
     {
         var result = await _mediator.Send(new ListRiskScoresQuery(patientId, page, pageSize));
+        return Ok(result);
+    }
+
+    [HttpGet("me/chat")]
+    [Authorize]
+    [RequirePermission("Chatbot", "Read")]
+    public async Task<IActionResult> GetMyChatConversation()
+    {
+        var result = await _mediator.Send(new GetMyChatConversationQuery());
+        return Ok(result);
+    }
+
+    [HttpPost("me/chat/messages")]
+    [Authorize]
+    [RequirePermission("Chatbot", "Send")]
+    public async Task<IActionResult> SendMyChatMessage([FromBody] SendChatMessageRequest body)
+    {
+        var result = await _mediator.Send(new SendChatMessageCommand(body.Message));
         return Ok(result);
     }
 
