@@ -16,15 +16,18 @@ public class VerifyTwoFactorCodeCommandHandler
     private readonly IApplicationDbContext _context;
     private readonly ITotpService _totpService;
     private readonly IEncryptionService _encryptionService;
+    private readonly INotificationService _notification;
 
     public VerifyTwoFactorCodeCommandHandler(
         IApplicationDbContext context,
         ITotpService totpService,
-        IEncryptionService encryptionService)
+        IEncryptionService encryptionService,
+        INotificationService notification)
     {
         _context = context;
         _totpService = totpService;
         _encryptionService = encryptionService;
+        _notification = notification;
     }
 
     public async Task Handle(
@@ -56,5 +59,7 @@ public class VerifyTwoFactorCodeCommandHandler
         _context.Update(user);
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _notification.SendTwoFactorEnabledAsync(user, cancellationToken);
     }
 }

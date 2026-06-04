@@ -51,9 +51,10 @@ public class ApproveDoctorCommandHandler : IRequestHandler<ApproveDoctorCommand,
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Notificar al doctor
+        await _notification.SendDoctorApprovedAsync(user, cancellationToken);
         await _notification.NotifyAdminAsync(
-            $"Doctor con email {user.Email} ha sido aprobado y activado.");
+            $"Doctor con email {user.Email} ha sido aprobado y activado.",
+            cancellationToken);
 
         return Unit.Value;
     }

@@ -19,6 +19,7 @@ public class HealthAlertConfiguration : IEntityTypeConfiguration<HealthAlert>
             .IsRequired();
 
         builder.Property(x => x.OccurredAt).IsRequired();
+        builder.Property(x => x.EmailSentAt);
 
         builder.HasIndex(x => new { x.PatientId, x.OccurredAt });
         builder.HasIndex(x => new { x.PatientId, x.IsRead });

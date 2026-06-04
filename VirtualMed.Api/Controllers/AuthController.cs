@@ -119,6 +119,34 @@ namespace VirtualMed.Api.Controllers
             return NoContent();
         }
 
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest request)
+        {
+            await _mediator.Send(new VerifyEmailCommand(request.Token));
+            return Ok(new { message = "Correo verificado correctamente." });
+        }
+
+        [HttpPost("resend-verification")]
+        public async Task<IActionResult> ResendVerification([FromBody] ResendEmailVerificationRequest request)
+        {
+            await _mediator.Send(new ResendEmailVerificationCommand(request.Email));
+            return Ok(new { message = "Si el correo existe y no está verificado, enviaremos un nuevo enlace." });
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            await _mediator.Send(new ForgotPasswordCommand(request.Email));
+            return Ok(new { message = "Si el correo existe, enviaremos instrucciones para restablecer la contraseña." });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            await _mediator.Send(new ResetPasswordCommand(request.Token, request.NewPassword));
+            return Ok(new { message = "Contraseña actualizada correctamente." });
+        }
+
         private Guid GetUserId()
         {
             var claim = User.FindFirst("sub") ??

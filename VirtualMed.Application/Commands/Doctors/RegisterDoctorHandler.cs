@@ -1,6 +1,9 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using VirtualMed.Application.Configuration;
 using VirtualMed.Domain.Entities;
+using VirtualMed.Domain.Enums;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Application.Interfaces.Services;
 using VirtualMed.Application.Exceptions;
@@ -14,17 +17,23 @@ namespace VirtualMed.Application.Commands.Doctors
         private readonly IPasswordHasher _passwordHasher;
         private readonly IMinioService _minioService;
         private readonly INotificationService _notification;
+        private readonly IEmailTokenService _emailTokenService;
+        private readonly EmailSettings _emailSettings;
 
         public RegisterDoctorCommandHandler(
             IApplicationDbContext context,
             IPasswordHasher passwordHasher,
             IMinioService minioService,
-            INotificationService notification)
+            INotificationService notification,
+            IEmailTokenService emailTokenService,
+            IOptions<EmailSettings> emailSettings)
         {
             _context = context;
             _passwordHasher = passwordHasher;
             _minioService = minioService;
             _notification = notification;
+            _emailTokenService = emailTokenService;
+            _emailSettings = emailSettings.Value;
         }
 
         public async Task<Guid> Handle(RegisterDoctorCommand request, CancellationToken cancellationToken)
@@ -83,9 +92,17 @@ namespace VirtualMed.Application.Commands.Doctors
 
             await _context.SaveChangesAsync(cancellationToken);
 
-            // notificar administrador
+            var rawToken = await _emailTokenService.CreateTokenAsync(
+                user.Id,
+                UserEmailTokenType.EmailVerification,
+                TimeSpan.FromHours(_emailSettings.EmailVerificationHours),
+                cancellationToken);
+
+            await _notification.SendEmailVerificationAsync(user, rawToken, cancellationToken);
+
             await _notification.NotifyAdminAsync(
-                $"Nuevo médico pendiente de aprobación: {user.Email}");
+                $"Nuevo médico pendiente de aprobación: {user.Email}",
+                cancellationToken);
 
             return doctor.Id;
         }

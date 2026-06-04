@@ -117,6 +117,7 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"))
 builder.Services.Configure<WebRtcSettings>(builder.Configuration.GetSection("WebRtc"));
 builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("Twilio"));
 builder.Services.Configure<RiskPredictionSettings>(builder.Configuration.GetSection("RiskPrediction"));
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<JwtSettings>(sp => sp.GetRequiredService<IOptions<JwtSettings>>().Value);
 builder.Services.AddHttpClient();
 
@@ -178,6 +179,8 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IMinioService, MinioService>();
+builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+builder.Services.AddScoped<IEmailTokenService, EmailTokenService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IEncryptionService, EncryptionService>();
 builder.Services.AddScoped<ITotpService, TotpService>();
@@ -193,7 +196,11 @@ builder.Services.AddScoped<AuditUserIdSaveChangesInterceptor>();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
 {
-    options.UseNpgsql(connectionString);
+    options.UseNpgsql(connectionString, npgsql =>
+    {
+        npgsql.EnableRetryOnFailure(maxRetryCount: 3);
+        npgsql.CommandTimeout(60);
+    });
     options.AddInterceptors(sp.GetRequiredService<AuditUserIdSaveChangesInterceptor>());
 });
 

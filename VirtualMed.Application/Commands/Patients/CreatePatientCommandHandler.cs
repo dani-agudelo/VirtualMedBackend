@@ -1,7 +1,10 @@
 using MediatR;
+using Microsoft.Extensions.Options;
+using VirtualMed.Application.Configuration;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Application.Interfaces.Services;
 using VirtualMed.Domain.Entities;
+using VirtualMed.Domain.Enums;
 
 namespace VirtualMed.Application.Commands.Patients;
 
@@ -12,19 +15,28 @@ public class CreatePatientCommandHandler : IRequestHandler<CreatePatientCommand,
     private readonly IRoleRepository _roleRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IApplicationDbContext _context;
+    private readonly IEmailTokenService _emailTokenService;
+    private readonly INotificationService _notification;
+    private readonly EmailSettings _emailSettings;
 
     public CreatePatientCommandHandler(
         IApplicationDbContext context,
         IPatientRepository patientRepository,
         IUserRepository userRepository,
         IRoleRepository roleRepository,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        IEmailTokenService emailTokenService,
+        INotificationService notification,
+        IOptions<EmailSettings> emailSettings)
     {
         _patientRepository = patientRepository;
         _context = context;
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _passwordHasher = passwordHasher;
+        _emailTokenService = emailTokenService;
+        _notification = notification;
+        _emailSettings = emailSettings.Value;
     }
 
     public async Task<Guid> Handle(
@@ -72,6 +84,14 @@ public class CreatePatientCommandHandler : IRequestHandler<CreatePatientCommand,
         await _patientRepository.AddAsync(patient);
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        var rawToken = await _emailTokenService.CreateTokenAsync(
+            user.Id,
+            UserEmailTokenType.EmailVerification,
+            TimeSpan.FromHours(_emailSettings.EmailVerificationHours),
+            cancellationToken);
+
+        await _notification.SendEmailVerificationAsync(user, rawToken, cancellationToken);
 
         return patient.Id;
     }

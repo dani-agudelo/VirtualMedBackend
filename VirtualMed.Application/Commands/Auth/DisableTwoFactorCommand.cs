@@ -16,13 +16,16 @@ public class DisableTwoFactorCommandHandler
 {
     private readonly IApplicationDbContext _context;
     private readonly IEncryptionService _encryptionService;
+    private readonly INotificationService _notification;
 
     public DisableTwoFactorCommandHandler(
         IApplicationDbContext context,
-        IEncryptionService encryptionService)
+        IEncryptionService encryptionService,
+        INotificationService notification)
     {
         _context = context;
         _encryptionService = encryptionService;
+        _notification = notification;
     }
 
     public async Task Handle(
@@ -60,5 +63,7 @@ public class DisableTwoFactorCommandHandler
         _context.Update(user);
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _notification.SendTwoFactorDisabledAsync(user, cancellationToken);
     }
 }

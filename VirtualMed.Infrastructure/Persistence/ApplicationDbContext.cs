@@ -31,6 +31,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<AlertThreshold> AlertThresholds => Set<AlertThreshold>();
     public DbSet<HealthAlert> HealthAlerts => Set<HealthAlert>();
     public DbSet<RiskScore> RiskScores => Set<RiskScore>();
+    public DbSet<UserEmailToken> UserEmailTokens => Set<UserEmailToken>();
 
     IQueryable<T> IApplicationDbContext.Set<T>() => Set<T>();
 

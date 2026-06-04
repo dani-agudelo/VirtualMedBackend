@@ -11,10 +11,12 @@ public class AlertEvaluationService : IAlertEvaluationService
     private static readonly TimeSpan DuplicateWindow = TimeSpan.FromHours(1);
 
     private readonly IApplicationDbContext _context;
+    private readonly INotificationService _notification;
 
-    public AlertEvaluationService(IApplicationDbContext context)
+    public AlertEvaluationService(IApplicationDbContext context, INotificationService notification)
     {
         _context = context;
+        _notification = notification;
     }
 
     public async Task EvaluateReadingsAsync(
@@ -36,6 +38,7 @@ public class AlertEvaluationService : IAlertEvaluationService
 
         var now = DateTime.UtcNow;
         var windowStart = now - DuplicateWindow;
+        var createdAlerts = new List<HealthAlert>();
 
         foreach (var reading in readings)
         {
@@ -81,6 +84,63 @@ public class AlertEvaluationService : IAlertEvaluationService
             };
 
             _context.Add(alert);
+            createdAlerts.Add(alert);
+        }
+
+        if (createdAlerts.Count == 0)
+            return;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await SendAlertEmailsAsync(patientId, createdAlerts, cancellationToken);
+    }
+
+    private async Task SendAlertEmailsAsync(
+        Guid patientId,
+        IReadOnlyList<HealthAlert> alerts,
+        CancellationToken cancellationToken)
+    {
+        var patient = await _context.Set<Patient>()
+            .AsNoTracking()
+            .Include(p => p.User)
+            .FirstOrDefaultAsync(p => p.Id == patientId, cancellationToken);
+
+        if (patient?.User is null)
+            return;
+
+        List<User>? doctorUsers = null;
+        if (alerts.Any(a => a.Severity == AlertSeverity.Critical))
+        {
+            var doctorUserIds = await (
+                from appointment in _context.Set<Appointment>()
+                where appointment.PatientId == patientId
+                join doctor in _context.Set<Doctor>() on appointment.DoctorId equals doctor.Id
+                select doctor.UserId
+            ).Distinct().ToListAsync(cancellationToken);
+
+            doctorUsers = await _context.Set<User>()
+                .AsNoTracking()
+                .Where(u => doctorUserIds.Contains(u.Id))
+                .ToListAsync(cancellationToken);
+        }
+
+        foreach (var alert in alerts)
+        {
+            await _notification.SendVitalAlertToPatientAsync(patient.User, alert, cancellationToken);
+
+            if (alert.Severity == AlertSeverity.Critical && doctorUsers is not null)
+            {
+                foreach (var doctorUser in doctorUsers)
+                {
+                    await _notification.SendVitalAlertToDoctorAsync(
+                        doctorUser,
+                        patient.User.FullName,
+                        alert,
+                        cancellationToken);
+                }
+            }
+
+            alert.EmailSentAt = DateTime.UtcNow;
+            _context.Update(alert);
         }
 
         await _context.SaveChangesAsync(cancellationToken);

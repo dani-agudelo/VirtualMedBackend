@@ -16,4 +16,5 @@ public class HealthAlert
     public AlertSeverity Severity { get; set; }
     public bool IsRead { get; set; }
     public DateTime OccurredAt { get; set; }
+    public DateTime? EmailSentAt { get; set; }
 }
