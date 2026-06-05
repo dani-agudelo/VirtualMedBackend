@@ -27,7 +27,8 @@ public class ChatbotClient : IChatbotClient
         _settings = settings.Value;
         var baseUrl = _settings.BaseUrl.TrimEnd('/') + "/";
         _httpClient.BaseAddress = new Uri(baseUrl);
-        _httpClient.Timeout = TimeSpan.FromSeconds(_settings.TimeoutSeconds);
+        var httpTimeoutSeconds = Math.Max(_settings.TimeoutSeconds, _settings.IngestTimeoutSeconds);
+        _httpClient.Timeout = TimeSpan.FromSeconds(httpTimeoutSeconds);
 
         if (!string.IsNullOrWhiteSpace(_settings.InternalApiKey)
             && !_httpClient.DefaultRequestHeaders.Contains("X-Internal-Api-Key"))

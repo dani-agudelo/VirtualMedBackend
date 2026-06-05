@@ -19,7 +19,6 @@ public class UploadRagDocumentCommandHandler : IRequestHandler<UploadRagDocument
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
     private readonly IRagUploadSession _uploadSession;
-    private readonly IMinioService _minioService;
     private readonly IChatbotClient _chatbotClient;
     private readonly RagDocumentsSettings _ragSettings;
     private readonly ILogger<UploadRagDocumentCommandHandler> _logger;
@@ -28,7 +27,6 @@ public class UploadRagDocumentCommandHandler : IRequestHandler<UploadRagDocument
         IApplicationDbContext context,
         ICurrentUserService currentUser,
         IRagUploadSession uploadSession,
-        IMinioService minioService,
         IChatbotClient chatbotClient,
         IOptions<RagDocumentsSettings> ragSettings,
         ILogger<UploadRagDocumentCommandHandler> logger)
@@ -36,7 +34,6 @@ public class UploadRagDocumentCommandHandler : IRequestHandler<UploadRagDocument
         _context = context;
         _currentUser = currentUser;
         _uploadSession = uploadSession;
-        _minioService = minioService;
         _chatbotClient = chatbotClient;
         _ragSettings = ragSettings.Value;
         _logger = logger;
@@ -95,7 +92,6 @@ public class UploadRagDocumentCommandHandler : IRequestHandler<UploadRagDocument
                 $"Ya existe un documento con el nombre '{displayFileName}'.");
 
         var documentId = Guid.NewGuid();
-        var storageKey = $"{documentId:N}/{displayFileName}";
         var now = DateTime.UtcNow;
 
         var entity = new RagDocument
@@ -103,7 +99,7 @@ public class UploadRagDocumentCommandHandler : IRequestHandler<UploadRagDocument
             Id = documentId,
             FileName = displayFileName,
             NormalizedFileName = normalizedFileName,
-            StorageKey = storageKey,
+            StorageKey = displayFileName,
             FileSizeBytes = request.FileSizeBytes,
             Status = RagDocumentStatus.Pending,
             UploadedByUserId = userId,
@@ -114,25 +110,6 @@ public class UploadRagDocumentCommandHandler : IRequestHandler<UploadRagDocument
         _logger.LogInformation("Guardando registro RAG en base de datos: {DocumentId}", documentId);
         await _context.SaveChangesAsync(cancellationToken);
 
-        try
-        {
-            await using var minioStream = File.OpenRead(tempPath);
-            _logger.LogInformation("Subiendo PDF a MinIO: {Bucket}/{StorageKey}", _ragSettings.BucketName, storageKey);
-            await _minioService.UploadAsync(
-                _ragSettings.BucketName,
-                storageKey,
-                minioStream,
-                cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al subir PDF a MinIO: {StorageKey}", storageKey);
-            await MarkFailedAndCleanupAsync(entity, ex.Message, cancellationToken);
-            throw new ExternalServiceException(
-                "No fue posible guardar el documento en el almacenamiento.",
-                "MinIO");
-        }
-
         await IngestSemaphore.WaitAsync(cancellationToken);
         try
         {
@@ -141,7 +118,9 @@ public class UploadRagDocumentCommandHandler : IRequestHandler<UploadRagDocument
 
             await using var ingestStream = File.OpenRead(tempPath);
 
-            _logger.LogInformation("Enviando PDF al servicio de indexacion: {FileName}", displayFileName);
+            _logger.LogInformation(
+                "Enviando PDF al chatbot (data/ + indexacion): {FileName}",
+                displayFileName);
 
             var ingestResult = await _chatbotClient.IngestDocumentAsync(
                 ingestStream,
@@ -149,6 +128,7 @@ public class UploadRagDocumentCommandHandler : IRequestHandler<UploadRagDocument
                 cancellationToken);
 
             entity.Status = RagDocumentStatus.Indexed;
+            entity.StorageKey = ingestResult.FileName;
             entity.IndexedNodeCount = ingestResult.IndexedNodes;
             entity.IndexedAt = DateTime.UtcNow;
             entity.ErrorMessage = null;
@@ -167,16 +147,22 @@ public class UploadRagDocumentCommandHandler : IRequestHandler<UploadRagDocument
         }
         catch (BusinessRuleException ex) when (ex.ErrorCode == "RAG_DUPLICATE")
         {
-            await MarkFailedAndCleanupAsync(entity, ex.Message, cancellationToken);
+            await MarkFailedAndCleanupAsync(entity, ex.Message, null, cancellationToken);
+            throw;
+        }
+        catch (ExternalServiceException ex)
+        {
+            _logger.LogWarning(ex, "Fallo la indexacion RAG para {FileName}", displayFileName);
+            await MarkFailedAndCleanupAsync(entity, ex.Message, null, cancellationToken);
             throw;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Fallo la indexacion RAG para {FileName}", displayFileName);
-            await MarkFailedAndCleanupAsync(entity, ex.Message, cancellationToken);
+            await MarkFailedAndCleanupAsync(entity, ex.Message, null, cancellationToken);
             throw new ExternalServiceException(
                 "No fue posible indexar el documento en el asistente clínico.",
-                "Chatbot");
+                ex);
         }
         finally
         {
@@ -200,28 +186,21 @@ public class UploadRagDocumentCommandHandler : IRequestHandler<UploadRagDocument
     private async Task MarkFailedAndCleanupAsync(
         RagDocument entity,
         string errorMessage,
+        string? chatbotFileName,
         CancellationToken cancellationToken)
     {
         entity.Status = RagDocumentStatus.Failed;
         entity.ErrorMessage = errorMessage.Length > 2000 ? errorMessage[..2000] : errorMessage;
         await _context.SaveChangesAsync(cancellationToken);
 
+        var nameToDelete = chatbotFileName ?? entity.StorageKey ?? entity.FileName;
         try
         {
-            await _chatbotClient.DeleteIndexedDocumentAsync(entity.FileName, cancellationToken);
+            await _chatbotClient.DeleteIndexedDocumentAsync(nameToDelete, cancellationToken);
         }
         catch
         {
             // Best effort: evita dejar el PDF en data/ si fallo la indexacion.
-        }
-
-        try
-        {
-            await _minioService.DeleteAsync(_ragSettings.BucketName, entity.StorageKey, cancellationToken);
-        }
-        catch
-        {
-            // Conserva registro fallido aunque MinIO no responda.
         }
     }
 
