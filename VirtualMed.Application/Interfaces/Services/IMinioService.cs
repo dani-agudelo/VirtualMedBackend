@@ -7,5 +7,6 @@ namespace VirtualMed.Application.Interfaces.Services
     public interface IMinioService
     {
         Task UploadAsync(string bucket, string objectName, Stream data, CancellationToken cancellationToken);
+        Task DeleteAsync(string bucket, string objectName, CancellationToken cancellationToken);
     }
 }

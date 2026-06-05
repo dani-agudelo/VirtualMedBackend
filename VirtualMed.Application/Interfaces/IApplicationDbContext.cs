@@ -9,4 +9,8 @@ public interface IApplicationDbContext
     void Update<T>(T entity) where T : class;
     void Remove<T>(T entity) where T : class;
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    Task<bool> RagDocumentExistsByNormalizedNameAsync(
+        string normalizedFileName,
+        CancellationToken cancellationToken = default);
 }

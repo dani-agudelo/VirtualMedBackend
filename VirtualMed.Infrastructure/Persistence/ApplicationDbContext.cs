@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using VirtualMed.Domain.Entities;
 using VirtualMed.Application.Interfaces;
+using System.Data;
 
 namespace VirtualMed.Infrastructure.Persistence;
 
@@ -34,6 +35,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<UserEmailToken> UserEmailTokens => Set<UserEmailToken>();
     public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<RagDocument> RagDocuments => Set<RagDocument>();
 
     IQueryable<T> IApplicationDbContext.Set<T>() => Set<T>();
 
@@ -42,6 +44,26 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     void IApplicationDbContext.Update<T>(T entity) => Set<T>().Update(entity);
 
     void IApplicationDbContext.Remove<T>(T entity) => Set<T>().Remove(entity);
+
+    public async Task<bool> RagDocumentExistsByNormalizedNameAsync(
+        string normalizedFileName,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = Database.GetDbConnection();
+        if (connection.State != ConnectionState.Open)
+            await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            "SELECT EXISTS(SELECT 1 FROM rag_documents WHERE \"NormalizedFileName\" = @name)";
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = "name";
+        parameter.Value = normalizedFileName;
+        command.Parameters.Add(parameter);
+
+        var scalar = await command.ExecuteScalarAsync(cancellationToken);
+        return scalar is bool exists && exists;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

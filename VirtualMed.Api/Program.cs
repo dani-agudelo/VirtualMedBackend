@@ -8,6 +8,7 @@ using VirtualMed.Application.Commands.Patients;
 using VirtualMed.Application.Common.Behaviors;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using VirtualMed.Application.Interfaces;
 using VirtualMed.Application.Interfaces.Services;
@@ -32,12 +33,35 @@ using VirtualMed.Infrastructure.Persistence.Interceptors;
 
 var builder = WebApplication.CreateBuilder(args);
 
+const long maxUploadBytes = 30L * 1024 * 1024;
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = maxUploadBytes;
+    options.Limits.MaxRequestBufferSize = maxUploadBytes;
+    options.Limits.MaxRequestLineSize = 16 * 1024;
+});
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = maxUploadBytes;
+    options.ValueLengthLimit = (int)maxUploadBytes;
+    options.MultipartHeadersLengthLimit = 64 * 1024;
+    options.MemoryBufferThreshold = 2 * 1024 * 1024;
+});
+
 // Serilog configuration
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .CreateLogger();
 
 builder.Host.UseSerilog();
+
+AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+{
+    if (args.ExceptionObject is Exception ex)
+        Log.Fatal(ex, "Excepcion no controlada en AppDomain");
+};
 
 // Add services to the container.
 
@@ -90,8 +114,8 @@ builder.Services.AddMediatR(cfg =>
 
 builder.Services.AddValidatorsFromAssembly(typeof(CreatePatientCommand).Assembly);
 
-builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 
 builder.Services.AddAutoMapper(typeof(VirtualMed.Application.Common.Mappings.PatientProfile).Assembly);
 
@@ -118,6 +142,7 @@ builder.Services.Configure<WebRtcSettings>(builder.Configuration.GetSection("Web
 builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("Twilio"));
 builder.Services.Configure<RiskPredictionSettings>(builder.Configuration.GetSection("RiskPrediction"));
 builder.Services.Configure<ChatbotSettings>(builder.Configuration.GetSection("Chatbot"));
+builder.Services.Configure<RagDocumentsSettings>(builder.Configuration.GetSection("RagDocuments"));
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<JwtSettings>(sp => sp.GetRequiredService<IOptions<JwtSettings>>().Value);
 builder.Services.AddHttpClient();
@@ -179,7 +204,7 @@ builder.Services.AddScoped<IDoctorRepository, DoctorRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
-builder.Services.AddScoped<IMinioService, MinioService>();
+builder.Services.AddSingleton<IMinioService, MinioService>();
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 builder.Services.AddScoped<IEmailTokenService, EmailTokenService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
@@ -189,6 +214,7 @@ builder.Services.AddScoped<IWebRtcIceService, TwilioWebRtcIceService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IRagUploadSession, RagUploadSession>();
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddScoped<ICardiovascularRiskFeatureAssembler, CardiovascularRiskFeatureAssembler>();
 builder.Services.AddHttpClient<IRiskPredictionClient, RiskPredictionClient>();

@@ -9,6 +9,16 @@ public interface IChatbotClient
         CancellationToken cancellationToken = default);
 
     Task<ChatbotHealthStatus> GetHealthAsync(CancellationToken cancellationToken = default);
+
+    Task<ChatbotIngestResult> IngestDocumentAsync(
+        Stream pdfStream,
+        string fileName,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ChatbotIndexedDocument>> ListIndexedDocumentsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task DeleteIndexedDocumentAsync(string fileName, CancellationToken cancellationToken = default);
 }
 
 public sealed class ChatbotApiResult
@@ -27,4 +37,18 @@ public sealed class ChatbotSourceItem
 public sealed class ChatbotHealthStatus
 {
     public required string Status { get; init; }
+}
+
+public sealed class ChatbotIngestResult
+{
+    public required string FileName { get; init; }
+    public required int IndexedDocuments { get; init; }
+    public required int IndexedNodes { get; init; }
+}
+
+public sealed class ChatbotIndexedDocument
+{
+    public required string FileName { get; init; }
+    public required int IndexedNodes { get; init; }
+    public required long FileSizeBytes { get; init; }
 }

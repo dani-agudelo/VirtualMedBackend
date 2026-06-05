@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using VirtualMed.Api.Models;
 using VirtualMed.Application.Common.Exceptions;
 using VirtualMed.Application.Exceptions;
@@ -56,6 +57,12 @@ public class GlobalExceptionHandler : IExceptionHandler
     {
         return exception switch
         {
+            BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge } =>
+                (413, "PAYLOAD_TOO_LARGE", "El archivo supera el limite permitido de subida."),
+            BadHttpRequestException badHttp =>
+                (400, "BAD_REQUEST", badHttp.Message),
+            InvalidDataException =>
+                (400, "INVALID_UPLOAD", "El archivo supera el limite permitido de subida."),
             ValidationException => (400, "VALIDATION_ERROR", "Datos de entrada inválidos"),
             UnauthorizedAccessException => (401, "UNAUTHORIZED", exception.Message),
             ForbiddenException => (403, "FORBIDDEN", exception.Message),
@@ -63,7 +70,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             DuplicateEntityException => (409, "CONFLICT", exception.Message),
             AppInvalidOperationException => (409, "BUSINESS_ERROR", exception.Message),
             BusinessRuleException bre => (409, bre.ErrorCode ?? "BUSINESS_ERROR", bre.Message),
-            ExternalServiceException => (503, "EXTERNAL_SERVICE_ERROR", "Servicio externo no disponible temporalmente"),
+            ExternalServiceException ese => (503, "EXTERNAL_SERVICE_ERROR", ese.Message),
             _ => (500, "INTERNAL_ERROR", "Ha ocurrido un error interno. Use el traceId para soporte.")
         };
     }

@@ -276,7 +276,10 @@ public class RolePermissionSeeder
                 PermissionKey("User", "ManageRoles"),
                 PermissionKey("Doctor", "Approve"),
                 PermissionKey("AuditLog", "Read"),
-                PermissionKey("AuditLog", "Export")
+                PermissionKey("AuditLog", "Export"),
+                PermissionKey("RagDocument", "Read"),
+                PermissionKey("RagDocument", "Upload"),
+                PermissionKey("RagDocument", "Delete")
             ],
             "FamilyMember" =>
             [
@@ -347,7 +350,10 @@ public class RolePermissionSeeder
             new("Role:Update", "Role", "Update", "Actualizar roles"),
             new("User:Read", "User", "Read", "Ver usuarios"),
             new("User:ManageRoles", "User", "ManageRoles", "Asignar roles a usuarios"),
-            new("Doctor:Approve", "Doctor", "Approve", "Aprobar médicos")
+            new("Doctor:Approve", "Doctor", "Approve", "Aprobar médicos"),
+            new("RagDocument:Read", "RagDocument", "Read", "Ver documentos del corpus RAG"),
+            new("RagDocument:Upload", "RagDocument", "Upload", "Subir documentos al corpus RAG"),
+            new("RagDocument:Delete", "RagDocument", "Delete", "Eliminar documentos del corpus RAG")
         ];
     }
 
