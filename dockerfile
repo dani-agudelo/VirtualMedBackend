@@ -1,36 +1,29 @@
 # Build stage
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Copy project files for restoration
 COPY ["VirtualMed.Api/VirtualMed.Api.csproj", "VirtualMed.Api/"]
 COPY ["VirtualMed.Application/VirtualMed.Application.csproj", "VirtualMed.Application/"]
 COPY ["VirtualMed.Domain/VirtualMed.Domain.csproj", "VirtualMed.Domain/"]
 COPY ["VirtualMed.Infrastructure/VirtualMed.Infrastructure.csproj", "VirtualMed.Infrastructure/"]
-COPY ["VirtualMed.Tests/VirtualMed.Tests.csproj", "VirtualMed.Tests/"]
 
-# Restore dependencies
 RUN dotnet restore "VirtualMed.Api/VirtualMed.Api.csproj"
 
-# Copy remaining source code
 COPY . .
-
-# Build and publish the API project
-RUN dotnet publish "VirtualMed.Api/VirtualMed.Api.csproj" -c Release -o /app/publish
+RUN dotnet publish "VirtualMed.Api/VirtualMed.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Expose port
-EXPOSE 8080
-EXPOSE 443
+ENV ASPNETCORE_URLS=http://+:8080 \
+    ASPNETCORE_ENVIRONMENT=Development
 
-# Copy published app from build stage
+EXPOSE 8080
+
 COPY --from=build /app/publish .
 
-# Health check (optional but recommended)
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD dotnet --version || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD curl -f http://127.0.0.1:8080/health || exit 1
 
 ENTRYPOINT ["dotnet", "VirtualMed.Api.dll"]
